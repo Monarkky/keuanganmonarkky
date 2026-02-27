@@ -93,15 +93,34 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSZ5nKf5cuAD9zLHvSFZ2aXXI8lCOhd5-IYAkvd8gePc51XJX75uu9F4oED3UGvhnK/exec";
     
-    // Set tanggal hari ini
-    document.getElementById('tanggal').valueAsDate = new Date();
+    // Fungsi untuk mendapatkan tanggal lokal Indonesia (YYYY-MM-DD)
+    function getTanggalLokal() {
+        const sekarang = new Date();
+        // Menyesuaikan ke GMT+7 (WIB)
+        const wib = new Date(sekarang.getTime() + (7 * 60 * 60 * 1000));
+        return sekarang.toLocaleDateString('en-CA'); // Format YYYY-MM-DD
+    }
 
-    // Load data pertama kali
+    // Set tanggal hari ini saat load
+    document.getElementById('tanggal').value = getTanggalLokal();
+
     window.onload = tampilkanData;
 
     const formatter = new Intl.NumberFormat('id-ID', {
         style: 'currency', currency: 'IDR', minimumFractionDigits: 0
     });
+
+    // Fungsi untuk merapikan format tanggal dari Google Sheets agar enak dibaca
+    function formatTanggalIndo(tanggalRaw) {
+        if (!tanggalRaw) return "-";
+        const d = new Date(tanggalRaw);
+        // Jika format dari Sheets aneh, kita bersihkan agar hanya muncul tgl-bln-thn
+        return d.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
 
     async function tambahData() {
         const btn = document.getElementById('btnSimpan');
@@ -120,19 +139,17 @@
         btn.innerText = "Mengirim data...";
 
         try {
-            // 1. Ambil data terakhir untuk hitung saldo
             const responseLoad = await fetch(SCRIPT_URL);
             const history = await responseLoad.json();
             
             let saldoSebelumnya = 0;
             if (history.length > 0) {
-                // Ambil kolom ke-6 (index 5) dari baris terakhir
                 saldoSebelumnya = parseFloat(history[history.length - 1][5]) || 0;
             }
             
             let totalBaru = saldoSebelumnya + nominal;
 
-            // 2. Kirim data ke Google Sheets
+            // Kita kirim string tanggal saja agar tidak diotak-atik sistem UTC
             const payload = { tanggal, nama, keterangan, bank, nominal, total: totalBaru };
 
             await fetch(SCRIPT_URL, {
@@ -140,7 +157,6 @@
                 body: JSON.stringify(payload)
             });
 
-            // 3. Reset form dan refresh tabel
             document.getElementById('nama').value = "";
             document.getElementById('keterangan').value = "";
             document.getElementById('nominal').value = "";
@@ -149,10 +165,10 @@
 
         } catch (error) {
             console.error("Error:", error);
-            alert("Gagal koneksi ke server. Pastikan Deploy Apps Script sudah 'Anyone'.");
+            alert("Gagal koneksi. Pastikan Apps Script sudah 'Anyone'.");
         } finally {
             btn.disabled = false;
-            btn.innerText = "SIMPAN";
+            btn.innerText = "SIMPAN DATA KE CLOUD";
         }
     }
 
@@ -174,7 +190,6 @@
             }
 
             history.forEach((row) => {
-                // row[0]=Tanggal, row[1]=Nama, row[2]=Ket, row[3]=Bank, row[4]=Nominal, row[5]=Total
                 if (filter === "SEMUA" || row[3] === filter) {
                     const nominal = parseFloat(row[4]);
                     runningTotalFiltered += nominal;
@@ -183,7 +198,7 @@
                     const classNominal = nominal >= 0 ? "nominal-plus" : "nominal-minus";
 
                     tr.innerHTML = `
-                        <td>${row[0]}</td>
+                        <td>${formatTanggalIndo(row[0])}</td>
                         <td>${row[1]}</td>
                         <td>${row[2]}</td>
                         <td><strong>${row[3]}</strong></td>
@@ -198,7 +213,7 @@
                 `Total di ${filter}: ${formatter.format(runningTotalFiltered)}` : "";
 
         } catch (error) {
-            tbody.innerHTML = "<tr><td colspan='6' class='loading-text' style='color:red'>Gagal memuat data. Periksa koneksi atau URL Script.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='6' class='loading-text' style='color:red'>Gagal memuat data.</td></tr>";
         }
     }
 </script>
