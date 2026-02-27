@@ -27,7 +27,7 @@
             color: var(--text-light);
         }
 
-        /* --- AUTH BOX (Login & Register) --- */
+        /* --- AUTH BOX --- */
         #authOverlay {
             background: var(--card-bg);
             backdrop-filter: blur(15px);
@@ -54,6 +54,12 @@
             transition: 0.3s;
         }
 
+        /* Memperbaiki tampilan pilihan di dropdown */
+        select option {
+            background-color: #1a3642;
+            color: white;
+        }
+
         input:focus, select:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.1); }
 
         button {
@@ -74,7 +80,7 @@
         .btn-alt { background: transparent; border: 1px solid var(--border); margin-top: 10px; }
         .btn-alt:hover { background: rgba(255, 255, 255, 0.05); }
 
-        /* --- DASHBOARD STYLING (Dark Theme) --- */
+        /* --- DASHBOARD STYLING --- */
         #mainContent { 
             display: none; 
             width: 95%; 
@@ -90,9 +96,20 @@
 
         .header-dash { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         
-        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
         
-        .btn-save { background-color: var(--success); grid-column: span 1; }
+        /* Tombol Save di Tengah */
+        .save-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 25px;
+        }
+
+        .btn-save { 
+            background-color: var(--success); 
+            width: 300px; 
+        }
 
         .filter-section { 
             background: rgba(255, 255, 255, 0.03); 
@@ -148,7 +165,7 @@
 
     <div id="mainContent">
         <div class="header-dash">
-            <h2 style="margin:0;">💰 Monarkky Finance <span style="font-weight: 200; opacity: 0.5;">| Cloud</span></h2>
+            <h2 id="welcomeText" style="margin:0;">💰 Hi! User</h2>
             <button class="logout-btn" onclick="logout()">LOGOUT</button>
         </div>
         
@@ -165,7 +182,10 @@
                 <option value="Cash">Cash / Tunai</option>
             </select>
             <input type="number" id="nominal" placeholder="Nominal (- jika keluar)">
-            <button id="btnSimpan" class="btn-save" onclick="tambahData()">SIMPAN DATA</button>
+        </div>
+
+        <div class="save-container">
+            <button id="btnSimpan" class="btn-save" onclick="tambahData()">SAVE DATA</button>
         </div>
 
         <div class="filter-section">
@@ -208,11 +228,12 @@
     </div>
 
 <script>
-    // MASUKKAN URL WEB APP GOOGLE SCRIPT KAMU DI SINI
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNFF_uU6j4SWmg0XN147M3e8mAi_eTeoTtk0NLSbiybeOcANsWt_kKL2fIn5_nbMfP/exec";
 
     // --- SISTEM AUTH ---
-    if (sessionStorage.getItem("isLoggedIn") === "true") showDashboard();
+    if (sessionStorage.getItem("isLoggedIn") === "true") {
+        setTimeout(showDashboard, 100); 
+    }
 
     function showRegister() {
         document.getElementById('loginBox').style.display = 'none';
@@ -239,6 +260,7 @@
 
             if (userFound) {
                 sessionStorage.setItem("isLoggedIn", "true");
+                sessionStorage.setItem("activeUser", u);
                 showDashboard();
             } else {
                 document.getElementById('errMsg').style.display = 'block';
@@ -271,9 +293,10 @@
     }
 
     function showDashboard() {
+        const user = sessionStorage.getItem("activeUser") || "User";
+        document.getElementById('welcomeText').innerText = `💰 Hi! ${user}`;
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
-        document.body.style.display = "block"; // Reset flex align
         tampilkanData();
     }
 
@@ -295,7 +318,7 @@
 
         if (!payload.tanggal || !payload.nama || !payload.bank || isNaN(payload.nominal)) { alert("Data tidak lengkap!"); return; }
 
-        btn.disabled = true; btn.innerText = "Menyimpan...";
+        btn.disabled = true; btn.innerText = "Saving...";
 
         try {
             const res = await fetch(SCRIPT_URL);
@@ -311,7 +334,7 @@
             document.getElementById('nama').value = "";
             document.getElementById('keterangan').value = "";
             document.getElementById('nominal').value = "";
-        } catch (e) { alert("Gagal simpan!"); } finally { btn.disabled = false; btn.innerText = "SIMPAN DATA"; }
+        } catch (e) { alert("Gagal simpan!"); } finally { btn.disabled = false; btn.innerText = "SAVE DATA"; }
     }
 
     async function tampilkanData() {
@@ -321,42 +344,3 @@
         
         try {
             const response = await fetch(SCRIPT_URL);
-            const db = await response.json();
-            const history = db.transaksi;
-            tbody.innerHTML = "";
-            let totalFiltered = 0;
-
-            if (!history || history.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px; opacity: 0.5;'>Belum ada transaksi.</td></tr>";
-                return;
-            }
-
-            history.forEach(row => {
-                const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
-                if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
-                    const nom = parseFloat(row[4]);
-                    totalFiltered += nom;
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${new Date(row[0]).toLocaleDateString('id-ID')}</td>
-                        <td>${row[1]}</td>
-                        <td>${row[2]}</td>
-                        <td><span style="color: var(--primary)">${row[3]}</span></td>
-                        <td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td>
-                        <td>${formatter.format(row[5])}</td>
-                    `;
-                    tbody.appendChild(tr);
-                }
-            });
-            document.getElementById('labelTotalPerBank').innerText = (fBank !== "SEMUA" || fTgl) ? `Ringkasan: ${formatter.format(totalFiltered)}` : "";
-        } catch (e) { tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; color: var(--danger);'>Gagal memuat data dari Sheets.</td></tr>"; }
-    }
-
-    function resetFilter() {
-        document.getElementById('filterBank').value = "SEMUA";
-        document.getElementById('filterTanggal').value = "";
-        tampilkanData();
-    }
-</script>
-</body>
-</html>
