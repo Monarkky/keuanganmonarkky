@@ -54,11 +54,7 @@
             transition: 0.3s;
         }
 
-        select option {
-            color: #000 !important; 
-            background: #fff !important;
-        }
-
+        select option { color: #000 !important; background: #fff !important; }
         input:focus, select:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.1); }
 
         button {
@@ -92,26 +88,10 @@
         }
 
         .header-dash { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
         
-        .form-group { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
-            gap: 15px; 
-            margin-bottom: 15px; 
-        }
-        
-        .save-wrapper {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            margin-bottom: 30px;
-        }
-
-        .btn-save { 
-            background-color: var(--success); 
-            width: 100%;
-            max-width: 400px;
-        }
+        .save-wrapper { display: flex; justify-content: center; width: 100%; margin-bottom: 30px; }
+        .btn-save { background-color: var(--success); width: 100%; max-width: 400px; }
 
         .filter-section { 
             background: rgba(255, 255, 255, 0.03); 
@@ -228,87 +208,63 @@
 
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNFF_uU6j4SWmg0XN147M3e8mAi_eTeoTtk0NLSbiybeOcANsWt_kKL2fIn5_nbMfP/exec";
+    
+    // VARIABEL AUTO LOGOUT
+    let timeout;
+    const waktuTunggu = 30 * 60 * 1000; // 30 Menit dalam Milidetik
 
-    // Cek status login saat halaman dimuat
     window.onload = function() {
         if (sessionStorage.getItem("isLoggedIn") === "true") {
             showDashboard();
+            mulaiTimer(); // Mulai hitung mundur jika sudah login
         }
     };
 
-    function showRegister() {
-        document.getElementById('loginBox').style.display = 'none';
-        document.getElementById('registerBox').style.display = 'block';
+    // --- LOGIKA AUTO LOGOUT ---
+    function mulaiTimer() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            alert("Sesi berakhir karena tidak ada aktivitas selama 30 menit.");
+            logout();
+        }, waktuTunggu);
     }
 
-    function hideRegister() {
-        document.getElementById('loginBox').style.display = 'block';
-        document.getElementById('registerBox').style.display = 'none';
-    }
+    // Reset timer setiap kali ada interaksi
+    document.onmousemove = mulaiTimer;
+    document.onkeypress = mulaiTimer;
+    document.onclick = mulaiTimer;
+    document.onscroll = mulaiTimer;
 
+    // --- FUNGSI LOGIN & AUTH ---
     async function checkLogin() {
         const uInput = document.getElementById('user').value;
         const pInput = document.getElementById('pass').value;
         const btn = document.querySelector("#loginBox button");
-        
-        if(!uInput || !pInput) { alert("Harap isi username dan password!"); return; }
-        
+        if(!uInput || !pInput) return;
         btn.innerText = "Checking...";
         btn.disabled = true;
 
         try {
             const res = await fetch(SCRIPT_URL);
             const db = await res.json();
-            
-            // Cari user di database (index 0 = username, index 1 = password)
-            const userFound = db.users.find(row => 
-                row[0].toString().toLowerCase() === uInput.toLowerCase() && 
-                row[1].toString() === pInput
-            );
+            const userFound = db.users.find(row => row[0].toString().toLowerCase() === uInput.toLowerCase() && row[1].toString() === pInput);
 
             if (userFound) {
-                // Simpan data ke session
                 sessionStorage.setItem("isLoggedIn", "true");
-                sessionStorage.setItem("activeUser", userFound[0]); // Ambil nama asli dari database
+                sessionStorage.setItem("activeUser", userFound[0]); 
                 showDashboard();
+                mulaiTimer(); // Mulai timer saat login berhasil
             } else {
                 document.getElementById('errMsg').style.display = 'block';
                 btn.innerText = "Masuk Sekarang";
                 btn.disabled = false;
             }
-        } catch (e) { 
-            alert("Koneksi gagal! Pastikan Apps Script sudah di-deploy sebagai Web App (Anyone)."); 
-            btn.disabled = false;
-            btn.innerText = "Masuk Sekarang";
-        }
+        } catch (e) { alert("Gagal koneksi!"); btn.disabled = false; }
     }
 
-    async function prosesDaftar() {
-        const u = document.getElementById('regUser').value;
-        const p = document.getElementById('regPass').value;
-        const otp = document.getElementById('regOtp').value;
-        if (!u || !p || !otp) { alert("Data tidak lengkap!"); return; }
-        const payload = { action: "register", username: u, password: p, otp: otp };
-        try {
-            const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
-            const result = await res.text();
-            if (result.includes("Success")) {
-                alert("Pendaftaran Berhasil! Silakan Login.");
-                hideRegister();
-            } else { alert(result); }
-        } catch (e) { alert("Gagal mendaftar!"); }
-    }
-
-    // FUNGSI INI YANG MENAMPILKAN NAMA USER
     function showDashboard() {
         const activeName = sessionStorage.getItem("activeUser") || "User";
-        
-        // Update elemen teks
-        const userSpan = document.getElementById('userNameSpan');
-        if (userSpan) {
-            userSpan.innerHTML = `Hi! ${activeName}`;
-        }
-        
+        document.getElementById('userNameSpan').innerText = `Hi! ${activeName}`;
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
         tampilkanData();
@@ -319,6 +275,9 @@
         location.reload(); 
     }
 
+    // --- LOGIKA DATA (Sama seperti sebelumnya) ---
+    function showRegister() { document.getElementById('loginBox').style.display = 'none'; document.getElementById('registerBox').style.display = 'block'; }
+    function hideRegister() { document.getElementById('loginBox').style.display = 'block'; document.getElementById('registerBox').style.display = 'none'; }
     document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
@@ -331,10 +290,8 @@
             bank: document.getElementById('bank').value,
             nominal: parseFloat(document.getElementById('nominal').value)
         };
-
-        if (!payload.tanggal || !payload.nama || !payload.bank || isNaN(payload.nominal)) { alert("Data tidak lengkap!"); return; }
+        if (!payload.tanggal || !payload.nama || !payload.bank || isNaN(payload.nominal)) { alert("Lengkapi data!"); return; }
         btn.disabled = true; btn.innerText = "Menyimpan...";
-
         try {
             const res = await fetch(SCRIPT_URL);
             const db = await res.json();
@@ -342,13 +299,9 @@
             let saldo = 0;
             if (history.length > 0) saldo = parseFloat(history[history.length - 1][5]) || 0;
             payload.total = saldo + payload.nominal;
-
             await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
-            alert("Tersimpan di Cloud!");
             tampilkanData();
-            document.getElementById('nama').value = "";
-            document.getElementById('keterangan').value = "";
-            document.getElementById('nominal').value = "";
+            document.getElementById('nama').value = ""; document.getElementById('keterangan').value = ""; document.getElementById('nominal').value = "";
         } catch (e) { alert("Gagal simpan!"); } finally { btn.disabled = false; btn.innerText = "SIMPAN DATA"; }
     }
 
@@ -362,36 +315,21 @@
             const history = db.transaksi;
             tbody.innerHTML = "";
             let totalFiltered = 0;
-            if (!history || history.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px; opacity: 0.5;'>Belum ada transaksi.</td></tr>";
-                return;
-            }
             history.forEach(row => {
                 const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
                 if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
                     const nom = parseFloat(row[4]);
                     totalFiltered += nom;
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${new Date(row[0]).toLocaleDateString('id-ID')}</td>
-                        <td>${row[1]}</td>
-                        <td>${row[2]}</td>
-                        <td><span style="color: var(--primary)">${row[3]}</span></td>
-                        <td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td>
-                        <td>${formatter.format(row[5])}</td>
-                    `;
+                    tr.innerHTML = `<td>${new Date(row[0]).toLocaleDateString('id-ID')}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td><td>${formatter.format(row[5])}</td>`;
                     tbody.appendChild(tr);
                 }
             });
             document.getElementById('labelTotalPerBank').innerText = (fBank !== "SEMUA" || fTgl) ? `Ringkasan: ${formatter.format(totalFiltered)}` : "";
-        } catch (e) { tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; color: var(--danger);'>Gagal memuat data dari Sheets.</td></tr>"; }
+        } catch (e) { tbody.innerHTML = "<tr><td colspan='6'>Gagal memuat data.</td></tr>"; }
     }
 
-    function resetFilter() {
-        document.getElementById('filterBank').value = "SEMUA";
-        document.getElementById('filterTanggal').value = "";
-        tampilkanData();
-    }
+    function resetFilter() { document.getElementById('filterBank').value = "SEMUA"; document.getElementById('filterTanggal').value = ""; tampilkanData(); }
 </script>
 </body>
 </html>
