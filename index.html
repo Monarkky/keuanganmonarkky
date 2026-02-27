@@ -40,6 +40,13 @@
         <input type="text" id="bank" placeholder="Bank">
         <input type="number" id="nominal" placeholder="Nominal (Gunakan - untuk keluar)">
         <button class="btn-save" onclick="tambahData()">Simpan Data</button>
+
+<div style="grid-column: span 2; display: flex; gap: 10px; margin-top: 5px;">
+    <button onclick="exportKeCSV()" style="background-color: #3498db; color: white; flex: 1; padding: 10px; border-radius: 6px; cursor: pointer; border: none;">📥 Download Excel (CSV)</button>
+    <button onclick="document.getElementById('fileInput').click()" style="background-color: #9b59b6; color: white; flex: 1; padding: 10px; border-radius: 6px; cursor: pointer; border: none;">📤 Import Data</button>
+    <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
+</div>
+        
     </div>
 
     <hr>
@@ -63,7 +70,44 @@
         <button class="btn-clear" onclick="hapusSemua()">Hapus Semua History</button>
     </div>
 </div>
+function exportKeCSV() {
+        const history = JSON.parse(localStorage.getItem('history_keuangan')) || [];
+        if (history.length === 0) return alert("Tidak ada data untuk diunduh!");
 
+        let csvContent = "Tanggal,Nama,Keterangan,Bank,Nominal,Total\n";
+        history.forEach(row => {
+            csvContent += `${row.tanggal},${row.nama},${row.keterangan},${row.bank},${row.nominal},${row.total}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.setAttribute("href", URL.createObjectURL(blob));
+        link.setAttribute("download", "history_keuangan.csv");
+        link.click();
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const rows = text.split('\n').slice(1);
+            let dataImport = [];
+            rows.forEach(row => {
+                if (row.trim() !== "") {
+                    const cols = row.split(',');
+                    dataImport.push({
+                        tanggal: cols[0], nama: cols[1], keterangan: cols[2], 
+                        bank: cols[3], nominal: parseFloat(cols[4]), total: parseFloat(cols[5])
+                    });
+                }
+            });
+            if (confirm("Import data akan menimpa history saat ini. Lanjutkan?")) {
+                localStorage.setItem('history_keuangan', JSON.stringify(dataImport));
+                location.reload(); // Refresh halaman untuk update tabel
+            }
+        };
+        reader.readAsText(file);
 <script>
     // Set tanggal otomatis ke hari ini
     document.getElementById('tanggal').valueAsDate = new Date();
