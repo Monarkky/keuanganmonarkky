@@ -207,11 +207,10 @@
     </div>
 
 <script>
-    // MASUKKAN URL ANDA DI SINI
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz972htGeaDscYa-vsSOioo2eWEoNBc7_qvUgFu0frhYN8VAoob0_y1XDtytMbijx7h/exec";
     
     let timeout;
-    const waktuTunggu = 30 * 60 * 1000; // 30 Menit
+    const waktuTunggu = 30 * 60 * 1000; 
 
     window.onload = function() {
         if (sessionStorage.getItem("isLoggedIn") === "true") {
@@ -231,7 +230,6 @@
     document.onmousemove = mulaiTimer;
     document.onkeypress = mulaiTimer;
 
-    // --- FUNGSI LOGIN ---
     async function checkLogin() {
         const uInput = document.getElementById('user').value;
         const pInput = document.getElementById('pass').value;
@@ -258,7 +256,6 @@
         } catch (e) { alert("Gagal koneksi!"); btn.disabled = false; }
     }
 
-    // --- FUNGSI DAFTAR (FIXED) ---
     async function prosesDaftar() {
         const u = document.getElementById('regUser').value;
         const p = document.getElementById('regPass').value;
@@ -266,7 +263,6 @@
         const btn = document.getElementById('btnProsesDaftar');
 
         if(!u || !p || !o) { alert("Lengkapi semua kolom!"); return; }
-
         btn.innerText = "Mendaftarkan...";
         btn.disabled = true;
 
@@ -276,19 +272,14 @@
                 body: JSON.stringify({ action: "register", username: u, password: p, otp: o })
             });
             const result = await response.text();
-
             if (result.includes("Success")) {
                 alert("Pendaftaran Berhasil! Silakan Login.");
                 hideRegister();
             } else {
                 alert(result);
             }
-        } catch (e) {
-            alert("Gagal koneksi server.");
-        } finally {
-            btn.innerText = "Konfirmasi Daftar";
-            btn.disabled = false;
-        }
+        } catch (e) { alert("Gagal koneksi server."); } 
+        finally { btn.innerText = "Konfirmasi Daftar"; btn.disabled = false; }
     }
 
     function showDashboard() {
@@ -310,6 +301,7 @@
 
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
+    // --- FUNGSI TAMBAH DATA (UPDATED) ---
     async function tambahData() {
         const btn = document.getElementById('btnSimpan');
         const payload = {
@@ -322,7 +314,8 @@
         
         if (!payload.nama || isNaN(payload.nominal)) { alert("Data tidak valid!"); return; }
         
-        btn.disabled = true; btn.innerText = "Menyimpan...";
+        btn.disabled = true; 
+        btn.innerText = "Menyimpan...";
         
         try {
             const res = await fetch(SCRIPT_URL);
@@ -331,11 +324,23 @@
             let saldo = history.length > 0 ? parseFloat(history[history.length - 1][5]) : 0;
             payload.total = saldo + payload.nominal;
 
-            await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
-            tampilkanData();
-            document.getElementById('nama').value = ""; document.getElementById('nominal').value = "";
-        } catch (e) { alert("Gagal simpan!"); } 
-        finally { btn.disabled = false; btn.innerText = "SIMPAN DATA"; }
+            const response = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
+            const result = await response.text();
+
+            if (result.includes("Success")) {
+                alert("✅ Data Berhasil Disimpan!");
+                // Opsi 1: Otomatis Refresh Halaman
+                location.reload(); 
+            } else {
+                alert("Gagal menyimpan data ke Cloud.");
+                btn.disabled = false;
+                btn.innerText = "SIMPAN DATA";
+            }
+        } catch (e) { 
+            alert("Terjadi kesalahan koneksi saat menyimpan!"); 
+            btn.disabled = false; 
+            btn.innerText = "SIMPAN DATA";
+        } 
     }
 
     async function tampilkanData() {
@@ -348,7 +353,10 @@
             tbody.innerHTML = "";
             let totalFiltered = 0;
             
-            db.transaksi.reverse().forEach(row => {
+            // Tampilkan transaksi terbaru di atas
+            const dataReverse = [...db.transaksi].reverse();
+            
+            dataReverse.forEach(row => {
                 const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
                 if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
                     const nom = parseFloat(row[4]);
