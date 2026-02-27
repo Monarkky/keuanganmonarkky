@@ -3,44 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pencatatan Keuangan per Bank</title>
+    <title>Sistem Keuangan Cloud (Sync Google Sheets)</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
         .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: #2c3e50; }
         
-        /* Form & Filter Styling */
-        .form-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        input, select, button { padding: 12px; border-radius: 6px; border: 1px solid #ddd; }
+        /* Form Styling */
+        .form-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        input, select, button { padding: 12px; border-radius: 6px; border: 1px solid #ddd; outline: none; }
         
-        .btn-save { background-color: #27ae60; color: white; font-weight: bold; grid-column: span 3; cursor: pointer; }
+        .btn-save { background-color: #27ae60; color: white; font-weight: bold; grid-column: span 3; cursor: pointer; border: none; transition: 0.3s; }
         .btn-save:hover { background-color: #219150; }
+        .btn-save:disabled { background-color: #bdc3c7; cursor: not-allowed; }
 
-        .filter-section { 
-            background: #ebf5fb; 
-            padding: 15px; 
-            border-radius: 8px; 
-            margin-bottom: 20px; 
-            display: flex; 
-            align-items: center; 
-            gap: 15px;
-        }
-
+        /* Filter Section */
+        .filter-section { background: #ebf5fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        
         /* Table Styling */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .table-container { overflow-x: auto; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 12px; border: 1px solid #eee; text-align: left; }
         th { background-color: #2980b9; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
         
         .nominal-plus { color: green; font-weight: bold; }
         .nominal-minus { color: red; font-weight: bold; }
-        .btn-clear { background-color: #e74c3c; color: white; border: none; padding: 10px; margin-top: 20px; cursor: pointer; width: 100%; border-radius: 6px; }
+        .loading-text { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>💰 Pencatatan Keuangan (Multi-Bank)</h2>
+    <h2>💰 Pencatatan Keuangan Cloud</h2>
+    <p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">Sinkronisasi Otomatis dengan Google Sheets</p>
     
     <div class="form-group">
         <input type="date" id="tanggal">
@@ -53,11 +49,11 @@
             <option value="Mandiri">Mandiri</option>
             <option value="BRI">BRI</option>
             <option value="BNI">BNI</option>
-            <option value="Cash">Cash / Lainnya</option>
+            <option value="Cash">Cash / Tunai</option>
         </select>
         
-        <input type="number" id="nominal" placeholder="Nominal (+/-)">
-        <button class="btn-save" onclick="tambahData()">SIMPAN DATA</button>
+        <input type="number" id="nominal" placeholder="Nominal (Gunakan - untuk keluar)">
+        <button id="btnSimpan" class="btn-save" onclick="tambahData()">SIMPAN DATA KE CLOUD</button>
     </div>
 
     <hr>
@@ -65,18 +61,18 @@
     <div class="filter-section">
         <strong>🔍 Filter per Bank:</strong>
         <select id="filterBank" onchange="tampilkanData()">
-            <option value="SEMUA">Tampilkan Semua Bank</option>
-            <option value="BCA">Khusus BCA</option>
-            <option value="Mandiri">Khusus Mandiri</option>
-            <option value="BRI">Khusus BRI</option>
-            <option value="BNI">Khusus BNI</option>
-            <option value="Cash">Khusus Cash</option>
+            <option value="SEMUA">Semua Bank</option>
+            <option value="BCA">BCA</option>
+            <option value="Mandiri">Mandiri</option>
+            <option value="BRI">BRI</option>
+            <option value="BNI">BNI</option>
+            <option value="Cash">Cash</option>
         </select>
         <span id="labelTotalPerBank" style="font-weight: bold; color: #2980b9; margin-left: auto;"></span>
     </div>
 
     <div class="table-container">
-        <table id="tabelHistory">
+        <table>
             <thead>
                 <tr>
                     <th>Tanggal</th>
@@ -87,20 +83,28 @@
                     <th>Total Saldo</th>
                 </tr>
             </thead>
-            <tbody id="isiTabel"></tbody>
+            <tbody id="isiTabel">
+                <tr><td colspan="6" class="loading-text">Memuat data dari Google Sheets...</td></tr>
+            </tbody>
         </table>
-        <button class="btn-clear" onclick="hapusSemua()">⚠️ Hapus Semua Data</button>
     </div>
 </div>
 
 <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwral0gVGfuuWaFz0iuzFhXPA-F0bJfYBJZ1ZjH4tOI-ac3tybzwIZADyQNju08n20b/exec";
+    
+    // Set tanggal hari ini
     document.getElementById('tanggal').valueAsDate = new Date();
 
-    window.onload = function() {
-        tampilkanData();
-    };
+    // Load data pertama kali
+    window.onload = tampilkanData;
 
-    function tambahData() {
+    const formatter = new Intl.NumberFormat('id-ID', {
+        style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+    });
+
+    async function tambahData() {
+        const btn = document.getElementById('btnSimpan');
         const tanggal = document.getElementById('tanggal').value;
         const nama = document.getElementById('nama').value;
         const keterangan = document.getElementById('keterangan').value;
@@ -108,73 +112,93 @@
         const nominal = parseFloat(document.getElementById('nominal').value);
 
         if (!tanggal || !nama || !bank || isNaN(nominal)) {
-            alert("Lengkapi semua data!");
+            alert("Lengkapi semua data sebelum menyimpan!");
             return;
         }
 
-        let history = JSON.parse(localStorage.getItem('history_keuangan')) || [];
-        
-        // Hitung total saldo akumulasi (Global)
-        let saldoTerakhir = history.length > 0 ? history[history.length - 1].total : 0;
-        let totalBaru = saldoTerakhir + nominal;
+        btn.disabled = true;
+        btn.innerText = "Mengirim data...";
 
-        const dataBaru = { tanggal, nama, keterangan, bank, nominal, total: totalBaru };
-
-        history.push(dataBaru);
-        localStorage.setItem('history_keuangan', JSON.stringify(history));
-
-        // Reset form
-        document.getElementById('nama').value = "";
-        document.getElementById('keterangan').value = "";
-        document.getElementById('nominal').value = "";
-        
-        tampilkanData();
-    }
-
-    function tampilkanData() {
-        const filter = document.getElementById('filterBank').value;
-        const history = JSON.parse(localStorage.getItem('history_keuangan')) || [];
-        const tbody = document.getElementById('isiTabel');
-        const labelTotal = document.getElementById('labelTotalPerBank');
-        
-        tbody.innerHTML = "";
-        let runningTotalFiltered = 0;
-
-        const formatter = new Intl.NumberFormat('id-ID', {
-            style: 'currency', currency: 'IDR', minimumFractionDigits: 0
-        });
-
-        history.forEach((data) => {
-            // Logika Filter: Tampilkan jika "SEMUA" atau jika Bank cocok
-            if (filter === "SEMUA" || data.bank === filter) {
-                runningTotalFiltered += data.nominal;
-                
-                const row = tbody.insertRow();
-                const classNominal = data.nominal >= 0 ? "nominal-plus" : "nominal-minus";
-
-                row.innerHTML = `
-                    <td>${data.tanggal}</td>
-                    <td>${data.nama}</td>
-                    <td>${data.keterangan}</td>
-                    <td><strong>${data.bank}</strong></td>
-                    <td class="${classNominal}">${formatter.format(data.nominal)}</td>
-                    <td>${formatter.format(data.total)}</td>
-                `;
+        try {
+            // 1. Ambil data terakhir untuk hitung saldo
+            const responseLoad = await fetch(SCRIPT_URL);
+            const history = await responseLoad.json();
+            
+            let saldoSebelumnya = 0;
+            if (history.length > 0) {
+                // Ambil kolom ke-6 (index 5) dari baris terakhir
+                saldoSebelumnya = parseFloat(history[history.length - 1][5]) || 0;
             }
-        });
+            
+            let totalBaru = saldoSebelumnya + nominal;
 
-        // Update Label Ringkasan Filter
-        if (filter !== "SEMUA") {
-            labelTotal.innerText = `Total Saldo di ${filter}: ${formatter.format(runningTotalFiltered)}`;
-        } else {
-            labelTotal.innerText = "";
+            // 2. Kirim data ke Google Sheets
+            const payload = { tanggal, nama, keterangan, bank, nominal, total: totalBaru };
+
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            // 3. Reset form dan refresh tabel
+            document.getElementById('nama').value = "";
+            document.getElementById('keterangan').value = "";
+            document.getElementById('nominal').value = "";
+            await tampilkanData();
+            alert("Berhasil disimpan ke Cloud!");
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Gagal koneksi ke server. Pastikan Deploy Apps Script sudah 'Anyone'.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "SIMPAN DATA KE CLOUD";
         }
     }
 
-    function hapusSemua() {
-        if (confirm("Hapus semua data?")) {
-            localStorage.removeItem('history_keuangan');
-            tampilkanData();
+    async function tampilkanData() {
+        const tbody = document.getElementById('isiTabel');
+        const filter = document.getElementById('filterBank').value;
+        const labelTotal = document.getElementById('labelTotalPerBank');
+        
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const history = await response.json();
+            
+            tbody.innerHTML = "";
+            let runningTotalFiltered = 0;
+
+            if (history.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='6' class='loading-text'>Belum ada data.</td></tr>";
+                return;
+            }
+
+            history.forEach((row) => {
+                // row[0]=Tanggal, row[1]=Nama, row[2]=Ket, row[3]=Bank, row[4]=Nominal, row[5]=Total
+                if (filter === "SEMUA" || row[3] === filter) {
+                    const nominal = parseFloat(row[4]);
+                    runningTotalFiltered += nominal;
+                    
+                    const tr = document.createElement('tr');
+                    const classNominal = nominal >= 0 ? "nominal-plus" : "nominal-minus";
+
+                    tr.innerHTML = `
+                        <td>${row[0]}</td>
+                        <td>${row[1]}</td>
+                        <td>${row[2]}</td>
+                        <td><strong>${row[3]}</strong></td>
+                        <td class="${classNominal}">${formatter.format(nominal)}</td>
+                        <td>${formatter.format(row[5])}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            labelTotal.innerText = filter !== "SEMUA" ? 
+                `Total di ${filter}: ${formatter.format(runningTotalFiltered)}` : "";
+
+        } catch (error) {
+            tbody.innerHTML = "<tr><td colspan='6' class='loading-text' style='color:red'>Gagal memuat data. Periksa koneksi atau URL Script.</td></tr>";
         }
     }
 </script>
