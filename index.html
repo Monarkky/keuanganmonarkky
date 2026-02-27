@@ -17,8 +17,10 @@
         .btn-save:hover { background-color: #219150; }
         .btn-save:disabled { background-color: #bdc3c7; cursor: not-allowed; }
 
-        /* Filter Section */
-        .filter-section { background: #ebf5fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        /* Filter Section Updated */
+        .filter-section { background: #ebf5fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 15px; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 0.8em; font-weight: bold; color: #2980b9; }
         
         /* Table Styling */
         .table-container { overflow-x: auto; margin-top: 20px; }
@@ -30,6 +32,8 @@
         .nominal-plus { color: green; font-weight: bold; }
         .nominal-minus { color: red; font-weight: bold; }
         .loading-text { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
+        
+        #labelTotalPerBank { font-weight: bold; color: #2c3e50; font-size: 1.1em; text-align: right; grid-column: span 3; margin-top: 10px; border-top: 1px dashed #2980b9; padding-top: 5px;}
     </style>
 </head>
 <body>
@@ -59,16 +63,25 @@
     <hr>
 
     <div class="filter-section">
-        <strong>🔍 Filter per Bank:</strong>
-        <select id="filterBank" onchange="tampilkanData()">
-            <option value="SEMUA">Semua Bank</option>
-            <option value="BCA">BCA</option>
-            <option value="Mandiri">Mandiri</option>
-            <option value="BRI">BRI</option>
-            <option value="BNI">BNI</option>
-            <option value="Cash">Cash</option>
-        </select>
-        <span id="labelTotalPerBank" style="font-weight: bold; color: #2980b9; margin-left: auto;"></span>
+        <div class="filter-group">
+            <label>🔍 Cari per Bank:</label>
+            <select id="filterBank" onchange="tampilkanData()">
+                <option value="SEMUA">Semua Bank</option>
+                <option value="BCA">BCA</option>
+                <option value="Mandiri">Mandiri</option>
+                <option value="BRI">BRI</option>
+                <option value="BNI">BNI</option>
+                <option value="Cash">Cash</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>📅 Cari per Tanggal:</label>
+            <input type="date" id="filterTanggal" onchange="tampilkanData()">
+        </div>
+        <div class="filter-group" style="align-self: flex-end;">
+            <button onclick="resetFilter()" style="background: #95a5a6; color: white; border: none; padding: 10px; cursor: pointer;">Reset Filter</button>
+        </div>
+        <div id="labelTotalPerBank"></div>
     </div>
 
     <div class="table-container">
@@ -93,33 +106,31 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSZ5nKf5cuAD9zLHvSFZ2aXXI8lCOhd5-IYAkvd8gePc51XJX75uu9F4oED3UGvhnK/exec";
     
-    // Fungsi untuk mendapatkan tanggal lokal Indonesia (YYYY-MM-DD)
     function getTanggalLokal() {
         const sekarang = new Date();
-        // Menyesuaikan ke GMT+7 (WIB)
-        const wib = new Date(sekarang.getTime() + (7 * 60 * 60 * 1000));
-        return sekarang.toLocaleDateString('en-CA'); // Format YYYY-MM-DD
+        return sekarang.toLocaleDateString('en-CA'); 
     }
 
-    // Set tanggal hari ini saat load
     document.getElementById('tanggal').value = getTanggalLokal();
-
     window.onload = tampilkanData;
 
     const formatter = new Intl.NumberFormat('id-ID', {
         style: 'currency', currency: 'IDR', minimumFractionDigits: 0
     });
 
-    // Fungsi untuk merapikan format tanggal dari Google Sheets agar enak dibaca
     function formatTanggalIndo(tanggalRaw) {
         if (!tanggalRaw) return "-";
         const d = new Date(tanggalRaw);
-        // Jika format dari Sheets aneh, kita bersihkan agar hanya muncul tgl-bln-thn
         return d.toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
+            day: '2-digit', month: '2-digit', year: 'numeric'
         });
+    }
+
+    // Fungsi tambahan untuk reset filter
+    function resetFilter() {
+        document.getElementById('filterBank').value = "SEMUA";
+        document.getElementById('filterTanggal').value = "";
+        tampilkanData();
     }
 
     async function tambahData() {
@@ -148,8 +159,6 @@
             }
             
             let totalBaru = saldoSebelumnya + nominal;
-
-            // Kita kirim string tanggal saja agar tidak diotak-atik sistem UTC
             const payload = { tanggal, nama, keterangan, bank, nominal, total: totalBaru };
 
             await fetch(SCRIPT_URL, {
@@ -174,7 +183,8 @@
 
     async function tampilkanData() {
         const tbody = document.getElementById('isiTabel');
-        const filter = document.getElementById('filterBank').value;
+        const filterBank = document.getElementById('filterBank').value;
+        const filterTanggal = document.getElementById('filterTanggal').value;
         const labelTotal = document.getElementById('labelTotalPerBank');
         
         try {
@@ -182,17 +192,26 @@
             const history = await response.json();
             
             tbody.innerHTML = "";
-            let runningTotalFiltered = 0;
+            let filteredTotalNominal = 0;
 
             if (history.length === 0) {
                 tbody.innerHTML = "<tr><td colspan='6' class='loading-text'>Belum ada data.</td></tr>";
+                labelTotal.innerText = "";
                 return;
             }
 
             history.forEach((row) => {
-                if (filter === "SEMUA" || row[3] === filter) {
+                // Konversi tanggal dari database ke format YYYY-MM-DD untuk pembandingan
+                const rawDate = new Date(row[0]);
+                const formattedRawDate = rawDate.toLocaleDateString('en-CA');
+
+                // Logika Filter Ganda
+                const matchBank = (filterBank === "SEMUA" || row[3] === filterBank);
+                const matchTanggal = (!filterTanggal || formattedRawDate === filterTanggal);
+
+                if (matchBank && matchTanggal) {
                     const nominal = parseFloat(row[4]);
-                    runningTotalFiltered += nominal;
+                    filteredTotalNominal += nominal;
                     
                     const tr = document.createElement('tr');
                     const classNominal = nominal >= 0 ? "nominal-plus" : "nominal-minus";
@@ -209,8 +228,17 @@
                 }
             });
 
-            labelTotal.innerText = filter !== "SEMUA" ? 
-                `Total di ${filter}: ${formatter.format(runningTotalFiltered)}` : "";
+            // Update Label Ringkasan Filter
+            let teksRingkasan = "Menampilkan hasil: ";
+            if (filterBank !== "SEMUA") teksRingkasan += `Bank ${filterBank} `;
+            if (filterTanggal) teksRingkasan += `pada tanggal ${formatTanggalIndo(filterTanggal)} `;
+            
+            labelTotal.innerText = (filterBank !== "SEMUA" || filterTanggal) ? 
+                `${teksRingkasan} | Total Nominal: ${formatter.format(filteredTotalNominal)}` : "";
+
+            if (tbody.innerHTML === "") {
+                tbody.innerHTML = "<tr><td colspan='6' class='loading-text'>Data tidak ditemukan untuk filter ini.</td></tr>";
+            }
 
         } catch (error) {
             tbody.innerHTML = "<tr><td colspan='6' class='loading-text' style='color:red'>Gagal memuat data.</td></tr>";
