@@ -54,7 +54,6 @@
             transition: 0.3s;
         }
 
-        /* Kategori Bank: Font Hitam */
         select option {
             color: #000 !important; 
             background: #fff !important;
@@ -76,7 +75,6 @@
         }
 
         button:hover { filter: brightness(1.2); transform: translateY(-2px); }
-
         .btn-alt { background: transparent; border: 1px solid var(--border); margin-top: 10px; }
 
         /* --- DASHBOARD STYLING --- */
@@ -102,7 +100,6 @@
             margin-bottom: 15px; 
         }
         
-        /* Container Tombol Simpan Tengah */
         .save-wrapper {
             display: flex;
             justify-content: center;
@@ -113,7 +110,7 @@
         .btn-save { 
             background-color: var(--success); 
             width: 100%;
-            max-width: 400px; /* Batas lebar tombol agar tidak terlalu panjang di PC */
+            max-width: 400px;
         }
 
         .filter-section { 
@@ -138,9 +135,7 @@
         .nominal-minus { color: #ff4757; font-weight: bold; }
         
         #labelTotalPerBank { width: 100%; font-weight: bold; color: var(--primary); font-size: 1.1em; text-align: right; margin-top: 10px;}
-        
         .logout-btn { background: var(--danger); width: auto; padding: 8px 18px; font-size: 0.8em; }
-
         ::placeholder { color: rgba(255,255,255,0.4); }
     </style>
 </head>
@@ -169,7 +164,7 @@
 
     <div id="mainContent">
         <div class="header-dash">
-            <h2 id="welcomeText" style="margin:0;">💰 Monarkky Finance <span style="font-weight: 200; opacity: 0.5;">| Cloud</span></h2>
+            <h2 id="welcomeText" style="margin:0;">Monarkky Finance 💰 | <span style="font-weight: 200; opacity: 0.7;">Hi! User</span></h2>
             <button class="logout-btn" onclick="logout()">LOGOUT</button>
         </div>
         
@@ -256,11 +251,11 @@
         try {
             const res = await fetch(SCRIPT_URL);
             const db = await res.json();
-            const userFound = db.users.find(row => row[0] === u && row[1].toString() === p);
+            const userFound = db.users.find(row => row[0].toString().toLowerCase() === u.toLowerCase() && row[1].toString() === p);
 
             if (userFound) {
                 sessionStorage.setItem("isLoggedIn", "true");
-                sessionStorage.setItem("activeUser", u);
+                sessionStorage.setItem("activeUser", userFound[0]); // Simpan username asli dari DB
                 showDashboard();
             } else {
                 document.getElementById('errMsg').style.display = 'block';
@@ -289,9 +284,12 @@
         } catch (e) { alert("Gagal mendaftar!"); }
     }
 
+    // FUNCTION UPDATED FOR PERSONALIZED WELCOME
     function showDashboard() {
         const user = sessionStorage.getItem("activeUser") || "User";
-        document.getElementById('welcomeText').innerHTML = `💰 Hi! ${user}`;
+        // Update header dengan format yang diminta
+        document.getElementById('welcomeText').innerHTML = `Monarkky Finance 💰 | <span style="font-weight: 200; opacity: 0.7;">Hi! ${user}</span>`;
+        
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
         tampilkanData();
