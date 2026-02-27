@@ -3,58 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pencatatan Keuangan</title>
+    <title>Pencatatan Keuangan per Bank</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: #2c3e50; }
         
-        /* Form Styling */
-        .form-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        input, button { padding: 12px; border-radius: 6px; border: 1px solid #ddd; outline: none; }
-        button { cursor: pointer; border: none; font-weight: bold; transition: 0.3s; }
-        .btn-save { background-color: #27ae60; color: white; grid-column: span 2; }
+        /* Form & Filter Styling */
+        .form-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        input, select, button { padding: 12px; border-radius: 6px; border: 1px solid #ddd; }
+        
+        .btn-save { background-color: #27ae60; color: white; font-weight: bold; grid-column: span 3; cursor: pointer; }
         .btn-save:hover { background-color: #219150; }
-        .btn-clear { background-color: #e74c3c; color: white; margin-top: 20px; width: 100%; }
-        .btn-clear:hover { background-color: #c0392b; }
+
+        .filter-section { 
+            background: #ebf5fb; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 15px;
+        }
 
         /* Table Styling */
-        .table-container { overflow-x: auto; margin-top: 30px; }
-        table { width: 100%; border-collapse: collapse; background: white; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; border: 1px solid #eee; text-align: left; }
         th { background-color: #2980b9; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
         
-        /* Pewarnaan Nominal */
-        .nominal-plus { color: #27ae60; font-weight: bold; }
-        .nominal-minus { color: #e74c3c; font-weight: bold; }
-        .total-saldo { font-weight: bold; color: #2c3e50; }
+        .nominal-plus { color: green; font-weight: bold; }
+        .nominal-minus { color: red; font-weight: bold; }
+        .btn-clear { background-color: #e74c3c; color: white; border: none; padding: 10px; margin-top: 20px; cursor: pointer; width: 100%; border-radius: 6px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>💰 Pencatatan Keuangan</h2>
+    <h2>💰 Pencatatan Keuangan (Multi-Bank)</h2>
     
     <div class="form-group">
-        <div>
-            <label>Tanggal:</label>
-            <input type="date" id="tanggal" style="width: 90%;">
-        </div>
-        <div>
-            <label>Nama:</label>
-            <input type="text" id="nama" placeholder="Contoh: Budi" style="width: 90%;">
-        </div>
-        <input type="text" id="keterangan" placeholder="Keterangan (Contoh: Gaji, Makan Siang)">
-        <input type="text" id="bank" placeholder="Bank (Contoh: BCA, Mandiri, Cash)">
-        <input type="number" id="nominal" placeholder="Nominal (Gunakan - untuk pengeluaran)">
-        <button class="btn-save" onclick="tambahData()">Simpan Data</button>
+        <input type="date" id="tanggal">
+        <input type="text" id="nama" placeholder="Nama">
+        <input type="text" id="keterangan" placeholder="Keterangan">
+        
+        <select id="bank">
+            <option value="">-- Pilih Bank --</option>
+            <option value="BCA">BCA</option>
+            <option value="Mandiri">Mandiri</option>
+            <option value="BRI">BRI</option>
+            <option value="BNI">BNI</option>
+            <option value="Cash">Cash / Lainnya</option>
+        </select>
+        
+        <input type="number" id="nominal" placeholder="Nominal (+/-)">
+        <button class="btn-save" onclick="tambahData()">SIMPAN DATA</button>
     </div>
 
     <hr>
 
+    <div class="filter-section">
+        <strong>🔍 Filter per Bank:</strong>
+        <select id="filterBank" onchange="tampilkanData()">
+            <option value="SEMUA">Tampilkan Semua Bank</option>
+            <option value="BCA">Khusus BCA</option>
+            <option value="Mandiri">Khusus Mandiri</option>
+            <option value="BRI">Khusus BRI</option>
+            <option value="BNI">Khusus BNI</option>
+            <option value="Cash">Khusus Cash</option>
+        </select>
+        <span id="labelTotalPerBank" style="font-weight: bold; color: #2980b9; margin-left: auto;"></span>
+    </div>
+
     <div class="table-container">
-        <h3>📜 History Transaksi</h3>
         <table id="tabelHistory">
             <thead>
                 <tr>
@@ -66,110 +87,96 @@
                     <th>Total Saldo</th>
                 </tr>
             </thead>
-            <tbody id="isiTabel">
-                </tbody>
+            <tbody id="isiTabel"></tbody>
         </table>
-        <button class="btn-clear" onclick="hapusSemua()">⚠️ Hapus Semua History</button>
+        <button class="btn-clear" onclick="hapusSemua()">⚠️ Hapus Semua Data</button>
     </div>
 </div>
 
 <script>
-    // 1. Set tanggal otomatis ke hari ini
     document.getElementById('tanggal').valueAsDate = new Date();
 
-    // 2. Fungsi memuat data dari LocalStorage saat web dibuka
     window.onload = function() {
         tampilkanData();
     };
 
-    // 3. Fungsi Tambah Data
     function tambahData() {
         const tanggal = document.getElementById('tanggal').value;
         const nama = document.getElementById('nama').value;
         const keterangan = document.getElementById('keterangan').value;
         const bank = document.getElementById('bank').value;
-        const nominalInput = document.getElementById('nominal').value;
-        const nominal = parseFloat(nominalInput);
+        const nominal = parseFloat(document.getElementById('nominal').value);
 
-        // Validasi
-        if (!tanggal || !nama || isNaN(nominal) || !bank) {
-            alert("Mohon isi semua data dengan benar!");
+        if (!tanggal || !nama || !bank || isNaN(nominal)) {
+            alert("Lengkapi semua data!");
             return;
         }
 
-        // Ambil history lama
         let history = JSON.parse(localStorage.getItem('history_keuangan')) || [];
+        
+        // Hitung total saldo akumulasi (Global)
+        let saldoTerakhir = history.length > 0 ? history[history.length - 1].total : 0;
+        let totalBaru = saldoTerakhir + nominal;
 
-        // Hitung saldo total baru
-        let saldoSebelumnya = 0;
-        if (history.length > 0) {
-            saldoSebelumnya = history[history.length - 1].total;
-        }
-        let totalBaru = saldoSebelumnya + nominal;
+        const dataBaru = { tanggal, nama, keterangan, bank, nominal, total: totalBaru };
 
-        // Buat objek data baru
-        const dataBaru = {
-            tanggal: tanggal,
-            nama: nama,
-            keterangan: keterangan,
-            bank: bank,
-            nominal: nominal,
-            total: totalBaru
-        };
-
-        // Simpan ke array dan LocalStorage
         history.push(dataBaru);
         localStorage.setItem('history_keuangan', JSON.stringify(history));
 
-        // Bersihkan form
+        // Reset form
         document.getElementById('nama').value = "";
         document.getElementById('keterangan').value = "";
-        document.getElementById('bank').value = "";
         document.getElementById('nominal').value = "";
-
-        // Update tabel
+        
         tampilkanData();
-        alert("Data berhasil disimpan!");
     }
 
-    // 4. Fungsi Menampilkan Data ke Tabel
     function tampilkanData() {
+        const filter = document.getElementById('filterBank').value;
         const history = JSON.parse(localStorage.getItem('history_keuangan')) || [];
         const tbody = document.getElementById('isiTabel');
-        tbody.innerHTML = ""; // Kosongkan tabel dulu
+        const labelTotal = document.getElementById('labelTotalPerBank');
+        
+        tbody.innerHTML = "";
+        let runningTotalFiltered = 0;
+
+        const formatter = new Intl.NumberFormat('id-ID', {
+            style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+        });
 
         history.forEach((data) => {
-            const row = tbody.insertRow();
-            
-            // Format Mata Uang Rupiah
-            const formatter = new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            });
+            // Logika Filter: Tampilkan jika "SEMUA" atau jika Bank cocok
+            if (filter === "SEMUA" || data.bank === filter) {
+                runningTotalFiltered += data.nominal;
+                
+                const row = tbody.insertRow();
+                const classNominal = data.nominal >= 0 ? "nominal-plus" : "nominal-minus";
 
-            // Beri warna nominal
-            const classNominal = data.nominal >= 0 ? "nominal-plus" : "nominal-minus";
-
-            row.innerHTML = `
-                <td>${data.tanggal}</td>
-                <td>${data.nama}</td>
-                <td>${data.keterangan}</td>
-                <td>${data.bank}</td>
-                <td class="${classNominal}">${formatter.format(data.nominal)}</td>
-                <td class="total-saldo">${formatter.format(data.total)}</td>
-            `;
+                row.innerHTML = `
+                    <td>${data.tanggal}</td>
+                    <td>${data.nama}</td>
+                    <td>${data.keterangan}</td>
+                    <td><strong>${data.bank}</strong></td>
+                    <td class="${classNominal}">${formatter.format(data.nominal)}</td>
+                    <td>${formatter.format(data.total)}</td>
+                `;
+            }
         });
+
+        // Update Label Ringkasan Filter
+        if (filter !== "SEMUA") {
+            labelTotal.innerText = `Total Saldo di ${filter}: ${formatter.format(runningTotalFiltered)}`;
+        } else {
+            labelTotal.innerText = "";
+        }
     }
 
-    // 5. Fungsi Hapus Semua
     function hapusSemua() {
-        if (confirm("Apakah Anda yakin ingin menghapus semua history? Data tidak bisa dikembalikan!")) {
+        if (confirm("Hapus semua data?")) {
             localStorage.removeItem('history_keuangan');
             tampilkanData();
         }
     }
 </script>
-
 </body>
 </html>
