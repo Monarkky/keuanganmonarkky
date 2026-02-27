@@ -1,94 +1,206 @@
-import csv
-import os
-from datetime import datetime
-
-# Nama file tempat data akan disimpan otomatis
-FILE_NAME = 'history_keuangan.csv'
-
-def inisialisasi_file():
-    """Membuat file dan header tabel jika belum ada."""
-    if not os.path.exists(FILE_NAME):
-        with open(FILE_NAME, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Tanggal', 'Nama', 'Keterangan', 'Bank', 'Nominal', 'Total'])
-
-def get_saldo_sebelumnya():
-    """Mengambil total saldo dari baris terakhir di history."""
-    if not os.path.exists(FILE_NAME):
-        return 0.0
-    
-    with open(FILE_NAME, mode='r') as file:
-        reader = list(csv.reader(file))
-        if len(reader) > 1: # Memastikan ada data selain header
-            baris_terakhir = reader[-1]
-            return float(baris_terakhir[5]) # Index 5 adalah kolom 'Total'
-    return 0.0
-
-def input_data():
-    """Fungsi untuk memasukkan data baru."""
-    print("\n--- MASUKKAN DATA BARU ---")
-    
-    # Tanggal otomatis hari ini jika dikosongkan
-    tanggal = input("Tanggal (DD-MM-YYYY) [Tekan Enter untuk hari ini]: ")
-    if not tanggal:
-        tanggal = datetime.now().strftime("%d-%m-%Y")
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Keuangan Cloud (Sync Google Sheets)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
         
-    nama = input("Nama: ")
-    keterangan = input("Keterangan: ")
-    bank = input("Bank: ")
+        /* Form Styling */
+        .form-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        input, select, button { padding: 12px; border-radius: 6px; border: 1px solid #ddd; outline: none; }
+        
+        .btn-save { background-color: #27ae60; color: white; font-weight: bold; grid-column: span 3; cursor: pointer; border: none; transition: 0.3s; }
+        .btn-save:hover { background-color: #219150; }
+        .btn-save:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        /* Filter Section */
+        .filter-section { background: #ebf5fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        
+        /* Table Styling */
+        .table-container { overflow-x: auto; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 12px; border: 1px solid #eee; text-align: left; }
+        th { background-color: #2980b9; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        
+        .nominal-plus { color: green; font-weight: bold; }
+        .nominal-minus { color: red; font-weight: bold; }
+        .loading-text { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>💰 Pencatatan Keuangan Cloud</h2>
+    <p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">Sinkronisasi Otomatis dengan Google Sheets</p>
     
-    try:
-        # Gunakan angka minus (-) untuk pengeluaran, angka biasa untuk pemasukan
-        nominal = float(input("Nominal (Contoh: 50000 untuk masuk, -20000 untuk keluar): "))
-    except ValueError:
-        print("❌ Error: Nominal harus berupa angka!")
-        return
+    <div class="form-group">
+        <input type="date" id="tanggal">
+        <input type="text" id="nama" placeholder="Nama">
+        <input type="text" id="keterangan" placeholder="Keterangan">
+        
+        <select id="bank">
+            <option value="">-- Pilih Bank --</option>
+            <option value="BCA">BCA</option>
+            <option value="Mandiri">Mandiri</option>
+            <option value="BRI">BRI</option>
+            <option value="BNI">BNI</option>
+            <option value="Cash">Cash / Tunai</option>
+        </select>
+        
+        <input type="number" id="nominal" placeholder="Nominal (Gunakan - untuk keluar)">
+        <button id="btnSimpan" class="btn-save" onclick="tambahData()">SIMPAN DATA KE CLOUD</button>
+    </div>
 
-    # Logika Total = Nominal + Saldo Sebelumnya
-    saldo_sebelumnya = get_saldo_sebelumnya()
-    total = saldo_sebelumnya + nominal
+    <hr>
 
-    # Menyimpan data secara otomatis (Append)
-    with open(FILE_NAME, mode='a', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow([tanggal, nama, keterangan, bank, nominal, total])
+    <div class="filter-section">
+        <strong>🔍 Filter per Bank:</strong>
+        <select id="filterBank" onchange="tampilkanData()">
+            <option value="SEMUA">Semua Bank</option>
+            <option value="BCA">BCA</option>
+            <option value="Mandiri">Mandiri</option>
+            <option value="BRI">BRI</option>
+            <option value="BNI">BNI</option>
+            <option value="Cash">Cash</option>
+        </select>
+        <span id="labelTotalPerBank" style="font-weight: bold; color: #2980b9; margin-left: auto;"></span>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Nama</th>
+                    <th>Keterangan</th>
+                    <th>Bank</th>
+                    <th>Nominal</th>
+                    <th>Total Saldo</th>
+                </tr>
+            </thead>
+            <tbody id="isiTabel">
+                <tr><td colspan="6" class="loading-text">Memuat data dari Google Sheets...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwral0gVGfuuWaFz0iuzFhXPA-F0bJfYBJZ1ZjH4tOI-ac3tybzwIZADyQNju08n20b/exec";
     
-    print(f"✅ Data berhasil disimpan! Total saldo saat ini: Rp {total:,.2f}")
+    // Set tanggal hari ini
+    document.getElementById('tanggal').valueAsDate = new Date();
 
-def cek_history():
-    """Fungsi untuk melihat tabel history data."""
-    print("\n--- HISTORY PENCATATAN ---")
-    if not os.path.exists(FILE_NAME):
-        print("Belum ada data yang tersimpan.")
-        return
-        
-    with open(FILE_NAME, mode='r') as file:
-        reader = csv.reader(file)
-        print("-" * 90)
-        for row in reader:
-            # Format tabel agar rapi saat dicetak di layar
-            print(f"{row[0]:<12} | {row[1]:<15} | {row[2]:<20} | {row[3]:<10} | {row[4]:<12} | {row[5]}")
-        print("-" * 90)
+    // Load data pertama kali
+    window.onload = tampilkanData;
 
-def main():
-    inisialisasi_file()
-    while True:
-        print("\n=== PROGRAM PENCATATAN KEUANGAN ===")
-        print("1. Input Data Baru")
-        print("2. Cek History")
-        print("3. Keluar")
-        
-        pilihan = input("Pilih menu (1/2/3): ")
-        
-        if pilihan == '1':
-            input_data()
-        elif pilihan == '2':
-            cek_history()
-        elif pilihan == '3':
-            print("Terima kasih telah menggunakan program ini!")
-            break
-        else:
-            print("❌ Pilihan tidak valid. Silakan pilih 1, 2, atau 3.")
+    const formatter = new Intl.NumberFormat('id-ID', {
+        style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+    });
 
-if __name__ == "__main__":
-    main()
+    async function tambahData() {
+        const btn = document.getElementById('btnSimpan');
+        const tanggal = document.getElementById('tanggal').value;
+        const nama = document.getElementById('nama').value;
+        const keterangan = document.getElementById('keterangan').value;
+        const bank = document.getElementById('bank').value;
+        const nominal = parseFloat(document.getElementById('nominal').value);
+
+        if (!tanggal || !nama || !bank || isNaN(nominal)) {
+            alert("Lengkapi semua data sebelum menyimpan!");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Mengirim data...";
+
+        try {
+            // 1. Ambil data terakhir untuk hitung saldo
+            const responseLoad = await fetch(SCRIPT_URL);
+            const history = await responseLoad.json();
+            
+            let saldoSebelumnya = 0;
+            if (history.length > 0) {
+                // Ambil kolom ke-6 (index 5) dari baris terakhir
+                saldoSebelumnya = parseFloat(history[history.length - 1][5]) || 0;
+            }
+            
+            let totalBaru = saldoSebelumnya + nominal;
+
+            // 2. Kirim data ke Google Sheets
+            const payload = { tanggal, nama, keterangan, bank, nominal, total: totalBaru };
+
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+
+            // 3. Reset form dan refresh tabel
+            document.getElementById('nama').value = "";
+            document.getElementById('keterangan').value = "";
+            document.getElementById('nominal').value = "";
+            await tampilkanData();
+            alert("Berhasil disimpan ke Cloud!");
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Gagal koneksi ke server. Pastikan Deploy Apps Script sudah 'Anyone'.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "SIMPAN DATA KE CLOUD";
+        }
+    }
+
+    async function tampilkanData() {
+        const tbody = document.getElementById('isiTabel');
+        const filter = document.getElementById('filterBank').value;
+        const labelTotal = document.getElementById('labelTotalPerBank');
+        
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const history = await response.json();
+            
+            tbody.innerHTML = "";
+            let runningTotalFiltered = 0;
+
+            if (history.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='6' class='loading-text'>Belum ada data.</td></tr>";
+                return;
+            }
+
+            history.forEach((row) => {
+                // row[0]=Tanggal, row[1]=Nama, row[2]=Ket, row[3]=Bank, row[4]=Nominal, row[5]=Total
+                if (filter === "SEMUA" || row[3] === filter) {
+                    const nominal = parseFloat(row[4]);
+                    runningTotalFiltered += nominal;
+                    
+                    const tr = document.createElement('tr');
+                    const classNominal = nominal >= 0 ? "nominal-plus" : "nominal-minus";
+
+                    tr.innerHTML = `
+                        <td>${row[0]}</td>
+                        <td>${row[1]}</td>
+                        <td>${row[2]}</td>
+                        <td><strong>${row[3]}</strong></td>
+                        <td class="${classNominal}">${formatter.format(nominal)}</td>
+                        <td>${formatter.format(row[5])}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            labelTotal.innerText = filter !== "SEMUA" ? 
+                `Total di ${filter}: ${formatter.format(runningTotalFiltered)}` : "";
+
+        } catch (error) {
+            tbody.innerHTML = "<tr><td colspan='6' class='loading-text' style='color:red'>Gagal memuat data. Periksa koneksi atau URL Script.</td></tr>";
+        }
+    }
+</script>
+</body>
+</html>
