@@ -114,7 +114,6 @@
         .nominal-plus { color: #2ecc71; font-weight: bold; }
         .nominal-minus { color: #ff4757; font-weight: bold; }
         
-        /* Tombol Hapus Specific Styling */
         .btn-del { 
             background-color: var(--danger); 
             padding: 8px 12px; 
@@ -217,7 +216,7 @@
     </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZiSY7luxEUmN2g1rR99yEvI58jSwE_hh7HY2bAg1C6Yea2fcltU-ENeaLPxpOfOkz/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxv9Xydu53NNdjxeMMXRiemw-RPH7CcfcuE8r74YxheYj0rdL_0ZbLNpUGW0xN423H1/exec";
     
     let timeout;
     const waktuTunggu = 30 * 60 * 1000; 
@@ -316,7 +315,6 @@
 
     async function tambahData() {
         const btn = document.getElementById('btnSimpan');
-        
         const elNama = document.getElementById('nama');
         const elKet = document.getElementById('keterangan');
         const elNom = document.getElementById('nominal');
@@ -331,8 +329,8 @@
             nominal: parseFloat(elNom.value)
         };
         
-        if (!payload.nama || isNaN(payload.nominal) || !payload.bank) { 
-            alert("Harap isi Nama, Bank, dan Nominal!"); 
+        if (!payload.nama || isNaN(payload.nominal) || !payload.bank || !payload.tanggal) { 
+            alert("Harap isi semua kolom dengan benar!"); 
             return; 
         }
         
@@ -340,20 +338,21 @@
         btn.innerText = "Menyimpan...";
         
         try {
-            const res = await fetch(SCRIPT_URL);
-            const db = await res.json();
-            const history = db.transaksi;
-            let saldo = history.length > 0 ? parseFloat(history[history.length - 1][5]) : 0;
-            payload.total = saldo + payload.nominal;
-
-            const response = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
+            const response = await fetch(SCRIPT_URL, { 
+                method: "POST", 
+                body: JSON.stringify(payload) 
+            });
             const result = await response.text();
 
             if (result.includes("Success")) {
                 alert("✅ Data Berhasil Disimpan!");
-                location.reload(); 
+                // Reset form
+                elNama.value = ""; elKet.value = ""; elNom.value = "";
+                btn.disabled = false;
+                btn.innerText = "SIMPAN DATA";
+                tampilkanData(); // Refresh tanpa reload halaman
             } else {
-                alert("Gagal menyimpan data ke Cloud.");
+                alert("Gagal: " + result);
                 btn.disabled = false;
                 btn.innerText = "SIMPAN DATA";
             }
@@ -364,13 +363,10 @@
         } 
     }
 
-    // --- FUNGSI HAPUS DATA (BARU) ---
     async function hapusData(idx) {
         if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
-        // Cari tombol hapus yang diklik dan ubah statusnya
         const btn = event.target;
-        const originalText = btn.innerText;
         btn.innerText = "⌛";
         btn.disabled = true;
 
@@ -382,17 +378,14 @@
             const result = await response.text();
 
             if (result.includes("Success")) {
-                alert("Data berhasil dihapus!");
-                tampilkanData(); // Refresh tabel saja
+                tampilkanData(); 
             } else {
                 alert("Gagal menghapus: " + result);
-                btn.innerText = originalText;
-                btn.disabled = false;
+                tampilkanData();
             }
         } catch (e) {
-            alert("Kesalahan koneksi saat menghapus.");
-            btn.innerText = originalText;
-            btn.disabled = false;
+            alert("Kesalahan koneksi.");
+            tampilkanData();
         }
     }
 
@@ -407,15 +400,15 @@
             tbody.innerHTML = "";
             let totalFiltered = 0;
             
-            // Kita gunakan data asli untuk mendapatkan index yang benar bagi Google Sheet
-            // Lalu kita buat salinan untuk ditampilkan secara terbalik (Terbaru di atas)
             const historyData = db.transaksi;
 
+            // Kita tampilkan terbalik agar yang terbaru (tanggal besar) ada di paling atas
             historyData.slice().reverse().forEach((row, revIdx) => {
-                // Kalkulasi index asli: (panjang total - 1) - index terbalik
                 const originalIndex = (historyData.length - 1) - revIdx;
                 
-                const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
+                // Format tanggal dari Google Sheet ke YYYY-MM-DD untuk filter
+                const dateObj = new Date(row[0]);
+                const rowDate = dateObj.toLocaleDateString('en-CA');
                 
                 if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
                     const nom = parseFloat(row[4]);
@@ -423,12 +416,12 @@
                     
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${new Date(row[0]).toLocaleDateString('id-ID')}</td>
+                        <td>${dateObj.toLocaleDateString('id-ID')}</td>
                         <td>${row[1]}</td>
                         <td>${row[2]}</td>
                         <td>${row[3]}</td>
                         <td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td>
-                        <td>${formatter.format(row[5])}</td>
+                        <td style="font-weight:bold; color: #fff;">${formatter.format(row[5])}</td>
                         <td><button class="btn-del" onclick="hapusData(${originalIndex})">🗑️</button></td>
                     `;
                     tbody.appendChild(tr);
@@ -441,7 +434,7 @@
                 tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; opacity:0.5;'>Tidak ada data.</td></tr>";
             }
         } catch (e) { 
-            tbody.innerHTML = "<tr><td colspan='7'>Gagal memuat data.</td></tr>"; 
+            tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>Gagal memuat data. Periksa URL SCRIPT_URL Anda.</td></tr>"; 
         }
     }
 
