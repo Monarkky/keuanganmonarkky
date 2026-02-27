@@ -124,10 +124,10 @@
     <div id="authOverlay">
         <div id="loginBox">
             <h2>🔐 Login System</h2>
-            <p style="font-size: 0.9em; opacity: 0.6; margin-bottom: 25px;">Masukkan kredensial untuk akses Cloud</p>
+            <p style="font-size: 0.9em; opacity: 0.6; margin-bottom: 25px;">Masukkan kredensial Cloud</p>
             <input type="text" id="user" placeholder="Username">
             <input type="password" id="pass" placeholder="Password">
-            <button onclick="checkLogin()">Masuk Sekarang</button>
+            <button id="btnLogin" onclick="checkLogin()">Masuk Sekarang</button>
             <button class="btn-alt" onclick="showRegister()">Daftar Akun Baru</button>
             <p id="errMsg" style="color: var(--danger); font-size: 0.85em; margin-top: 15px; display: none;">Username atau Password salah!</p>
         </div>
@@ -137,7 +137,7 @@
             <input type="text" id="regUser" placeholder="Buat Username">
             <input type="password" id="regPass" placeholder="Buat Password">
             <input type="text" id="regOtp" placeholder="OTP Admin (Rahasia)" style="border: 1px solid var(--warning);">
-            <button onclick="prosesDaftar()" style="background: var(--success);">Konfirmasi Daftar</button>
+            <button id="btnProsesDaftar" onclick="prosesDaftar()" style="background: var(--success);">Konfirmasi Daftar</button>
             <button class="btn-alt" onclick="hideRegister()">Batal</button>
         </div>
     </div>
@@ -200,46 +200,43 @@
                     </tr>
                 </thead>
                 <tbody id="isiTabel">
-                    <tr><td colspan="6" style="text-align:center; padding: 50px; opacity: 0.5;">Menghubungkan ke Cloud...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding: 50px; opacity: 0.5;">Memuat data dari Cloud...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNFF_uU6j4SWmg0XN147M3e8mAi_eTeoTtk0NLSbiybeOcANsWt_kKL2fIn5_nbMfP/exec";
+    // MASUKKAN URL ANDA DI SINI
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz1e_mMQTKO-1dZ-rnthE7HYPjpMueTRcV738LJwR015GND-8R_KBvHcqRglfRrt-nh/exec";
     
-    // VARIABEL AUTO LOGOUT
     let timeout;
-    const waktuTunggu = 30 * 60 * 1000; // 30 Menit dalam Milidetik
+    const waktuTunggu = 30 * 60 * 1000; // 30 Menit
 
     window.onload = function() {
         if (sessionStorage.getItem("isLoggedIn") === "true") {
             showDashboard();
-            mulaiTimer(); // Mulai hitung mundur jika sudah login
+            mulaiTimer();
         }
     };
 
-    // --- LOGIKA AUTO LOGOUT ---
     function mulaiTimer() {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
-            alert("Sesi berakhir karena tidak ada aktivitas selama 30 menit.");
+            alert("Sesi berakhir karena tidak ada aktivitas.");
             logout();
         }, waktuTunggu);
     }
 
-    // Reset timer setiap kali ada interaksi
     document.onmousemove = mulaiTimer;
     document.onkeypress = mulaiTimer;
-    document.onclick = mulaiTimer;
-    document.onscroll = mulaiTimer;
 
-    // --- FUNGSI LOGIN & AUTH ---
+    // --- FUNGSI LOGIN ---
     async function checkLogin() {
         const uInput = document.getElementById('user').value;
         const pInput = document.getElementById('pass').value;
-        const btn = document.querySelector("#loginBox button");
+        const btn = document.getElementById('btnLogin');
+        
         if(!uInput || !pInput) return;
         btn.innerText = "Checking...";
         btn.disabled = true;
@@ -253,7 +250,6 @@
                 sessionStorage.setItem("isLoggedIn", "true");
                 sessionStorage.setItem("activeUser", userFound[0]); 
                 showDashboard();
-                mulaiTimer(); // Mulai timer saat login berhasil
             } else {
                 document.getElementById('errMsg').style.display = 'block';
                 btn.innerText = "Masuk Sekarang";
@@ -262,11 +258,45 @@
         } catch (e) { alert("Gagal koneksi!"); btn.disabled = false; }
     }
 
+    // --- FUNGSI DAFTAR (FIXED) ---
+    async function prosesDaftar() {
+        const u = document.getElementById('regUser').value;
+        const p = document.getElementById('regPass').value;
+        const o = document.getElementById('regOtp').value;
+        const btn = document.getElementById('btnProsesDaftar');
+
+        if(!u || !p || !o) { alert("Lengkapi semua kolom!"); return; }
+
+        btn.innerText = "Mendaftarkan...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "register", username: u, password: p, otp: o })
+            });
+            const result = await response.text();
+
+            if (result.includes("Success")) {
+                alert("Pendaftaran Berhasil! Silakan Login.");
+                hideRegister();
+            } else {
+                alert(result);
+            }
+        } catch (e) {
+            alert("Gagal koneksi server.");
+        } finally {
+            btn.innerText = "Konfirmasi Daftar";
+            btn.disabled = false;
+        }
+    }
+
     function showDashboard() {
         const activeName = sessionStorage.getItem("activeUser") || "User";
         document.getElementById('userNameSpan').innerText = `Hi! ${activeName}`;
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
+        document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
         tampilkanData();
     }
 
@@ -275,10 +305,9 @@
         location.reload(); 
     }
 
-    // --- LOGIKA DATA (Sama seperti sebelumnya) ---
     function showRegister() { document.getElementById('loginBox').style.display = 'none'; document.getElementById('registerBox').style.display = 'block'; }
     function hideRegister() { document.getElementById('loginBox').style.display = 'block'; document.getElementById('registerBox').style.display = 'none'; }
-    document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
+
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     async function tambahData() {
@@ -290,19 +319,23 @@
             bank: document.getElementById('bank').value,
             nominal: parseFloat(document.getElementById('nominal').value)
         };
-        if (!payload.tanggal || !payload.nama || !payload.bank || isNaN(payload.nominal)) { alert("Lengkapi data!"); return; }
+        
+        if (!payload.nama || isNaN(payload.nominal)) { alert("Data tidak valid!"); return; }
+        
         btn.disabled = true; btn.innerText = "Menyimpan...";
+        
         try {
             const res = await fetch(SCRIPT_URL);
             const db = await res.json();
             const history = db.transaksi;
-            let saldo = 0;
-            if (history.length > 0) saldo = parseFloat(history[history.length - 1][5]) || 0;
+            let saldo = history.length > 0 ? parseFloat(history[history.length - 1][5]) : 0;
             payload.total = saldo + payload.nominal;
+
             await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
             tampilkanData();
-            document.getElementById('nama').value = ""; document.getElementById('keterangan').value = ""; document.getElementById('nominal').value = "";
-        } catch (e) { alert("Gagal simpan!"); } finally { btn.disabled = false; btn.innerText = "SIMPAN DATA"; }
+            document.getElementById('nama').value = ""; document.getElementById('nominal').value = "";
+        } catch (e) { alert("Gagal simpan!"); } 
+        finally { btn.disabled = false; btn.innerText = "SIMPAN DATA"; }
     }
 
     async function tampilkanData() {
@@ -312,10 +345,10 @@
         try {
             const response = await fetch(SCRIPT_URL);
             const db = await response.json();
-            const history = db.transaksi;
             tbody.innerHTML = "";
             let totalFiltered = 0;
-            history.forEach(row => {
+            
+            db.transaksi.reverse().forEach(row => {
                 const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
                 if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
                     const nom = parseFloat(row[4]);
