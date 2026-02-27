@@ -297,6 +297,7 @@
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
         
+        // Set default tanggal hari ini saat login
         document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
         document.getElementById('nama').focus(); 
         
@@ -346,8 +347,18 @@
 
             if (result.includes("Success")) {
                 alert("✅ Data Berhasil Disimpan!");
-                // Reset form
-                elNama.value = ""; elKet.value = ""; elNom.value = "";
+                
+                // --- PROSES RESET FORM ---
+                elNama.value = ""; 
+                elKet.value = ""; 
+                elNom.value = "";
+                
+                // RESET TANGGAL KE HARI INI
+                elTgl.value = new Date().toLocaleDateString('en-CA');
+                
+                // AUTO FOCUS KE NAMA UNTUK INPUT SELANJUTNYA
+                elNama.focus();
+
                 btn.disabled = false;
                 btn.innerText = "SIMPAN DATA";
                 tampilkanData(); // Refresh tanpa reload halaman
@@ -402,11 +413,9 @@
             
             const historyData = db.transaksi;
 
-            // Kita tampilkan terbalik agar yang terbaru (tanggal besar) ada di paling atas
             historyData.slice().reverse().forEach((row, revIdx) => {
                 const originalIndex = (historyData.length - 1) - revIdx;
                 
-                // Format tanggal dari Google Sheet ke YYYY-MM-DD untuk filter
                 const dateObj = new Date(row[0]);
                 const rowDate = dateObj.toLocaleDateString('en-CA');
                 
