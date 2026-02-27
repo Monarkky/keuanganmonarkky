@@ -164,7 +164,7 @@
 
     <div id="mainContent">
         <div class="header-dash">
-            <h2 id="welcomeText" style="margin:0;">Monarkky Finance 💰 | <span style="font-weight: 200; opacity: 0.7;">Hi! User</span></h2>
+            <h2 id="welcomeText" style="margin:0;">Monarkky Finance 💰 | <span id="userNameSpan" style="font-weight: 200; opacity: 0.7;">Hi! User</span></h2>
             <button class="logout-btn" onclick="logout()">LOGOUT</button>
         </div>
         
@@ -229,7 +229,12 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNFF_uU6j4SWmg0XN147M3e8mAi_eTeoTtk0NLSbiybeOcANsWt_kKL2fIn5_nbMfP/exec";
 
-    if (sessionStorage.getItem("isLoggedIn") === "true") showDashboard();
+    // Cek status login saat halaman dimuat
+    window.onload = function() {
+        if (sessionStorage.getItem("isLoggedIn") === "true") {
+            showDashboard();
+        }
+    };
 
     function showRegister() {
         document.getElementById('loginBox').style.display = 'none';
@@ -242,20 +247,29 @@
     }
 
     async function checkLogin() {
-        const u = document.getElementById('user').value;
-        const p = document.getElementById('pass').value;
+        const uInput = document.getElementById('user').value;
+        const pInput = document.getElementById('pass').value;
         const btn = document.querySelector("#loginBox button");
+        
+        if(!uInput || !pInput) { alert("Harap isi username dan password!"); return; }
+        
         btn.innerText = "Checking...";
         btn.disabled = true;
 
         try {
             const res = await fetch(SCRIPT_URL);
             const db = await res.json();
-            const userFound = db.users.find(row => row[0].toString().toLowerCase() === u.toLowerCase() && row[1].toString() === p);
+            
+            // Cari user di database (index 0 = username, index 1 = password)
+            const userFound = db.users.find(row => 
+                row[0].toString().toLowerCase() === uInput.toLowerCase() && 
+                row[1].toString() === pInput
+            );
 
             if (userFound) {
+                // Simpan data ke session
                 sessionStorage.setItem("isLoggedIn", "true");
-                sessionStorage.setItem("activeUser", userFound[0]); // Simpan username asli dari DB
+                sessionStorage.setItem("activeUser", userFound[0]); // Ambil nama asli dari database
                 showDashboard();
             } else {
                 document.getElementById('errMsg').style.display = 'block';
@@ -263,8 +277,9 @@
                 btn.disabled = false;
             }
         } catch (e) { 
-            alert("Gagal mengambil data user!"); 
+            alert("Koneksi gagal! Pastikan Apps Script sudah di-deploy sebagai Web App (Anyone)."); 
             btn.disabled = false;
+            btn.innerText = "Masuk Sekarang";
         }
     }
 
@@ -284,18 +299,25 @@
         } catch (e) { alert("Gagal mendaftar!"); }
     }
 
-    // FUNCTION UPDATED FOR PERSONALIZED WELCOME
+    // FUNGSI INI YANG MENAMPILKAN NAMA USER
     function showDashboard() {
-        const user = sessionStorage.getItem("activeUser") || "User";
-        // Update header dengan format yang diminta
-        document.getElementById('welcomeText').innerHTML = `Monarkky Finance 💰 | <span style="font-weight: 200; opacity: 0.7;">Hi! ${user}</span>`;
+        const activeName = sessionStorage.getItem("activeUser") || "User";
+        
+        // Update elemen teks
+        const userSpan = document.getElementById('userNameSpan');
+        if (userSpan) {
+            userSpan.innerHTML = `Hi! ${activeName}`;
+        }
         
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
         tampilkanData();
     }
 
-    function logout() { sessionStorage.clear(); location.reload(); }
+    function logout() { 
+        sessionStorage.clear(); 
+        location.reload(); 
+    }
 
     document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
