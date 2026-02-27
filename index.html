@@ -1,346 +1,682 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
+
 <html lang="id">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Monarkky Finance - Dark Edition</title>
+
     <style>
+
         :root {
+
             --primary: #3498db;
+
             --success: #2ecc71;
+
             --danger: #e74c3c;
+
             --warning: #f1c40f;
+
             --dark-bg: #121212;
+
             --card-bg: rgba(30, 30, 30, 0.8);
+
             --text-light: #e0e0e0;
+
             --border: rgba(255, 255, 255, 0.1);
+
         }
+
 
         body { 
+
             font-family: 'Segoe UI', sans-serif; 
+
             background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+
             margin: 0; 
+
             display: flex; 
+
             justify-content: center; 
+
             align-items: center; 
+
             min-height: 100vh;
+
             color: var(--text-light);
+
         }
 
-        /* --- AUTH BOX --- */
+
+        /* --- AUTH BOX (Login & Register) --- */
+
         #authOverlay {
+
             background: var(--card-bg);
+
             backdrop-filter: blur(15px);
+
             padding: 40px;
+
             border-radius: 24px;
+
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+
             text-align: center;
+
             width: 380px;
+
             border: 1px solid var(--border);
+
         }
+
 
         h2 { margin-top: 0; color: #fff; letter-spacing: 1px; }
 
+
         input, select {
+
             width: 100%;
+
             padding: 14px;
+
             margin-bottom: 15px;
+
             border-radius: 10px;
+
             border: 1px solid var(--border);
+
             box-sizing: border-box;
+
             background: rgba(255, 255, 255, 0.05);
+
             color: #fff;
+
             outline: none;
+
             transition: 0.3s;
+
         }
 
-        /* Memperbaiki tampilan pilihan di dropdown */
-        select option {
-            background-color: #1a3642;
-            color: white;
-        }
 
         input:focus, select:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.1); }
 
+
         button {
+
             width: 100%;
+
             padding: 14px;
+
             background: var(--primary);
+
             color: white;
+
             border: none;
+
             border-radius: 10px;
+
             font-weight: bold;
+
             cursor: pointer;
+
             transition: 0.3s;
+
             text-transform: uppercase;
+
         }
+
 
         button:hover { filter: brightness(1.2); transform: translateY(-2px); }
 
+
         .btn-alt { background: transparent; border: 1px solid var(--border); margin-top: 10px; }
+
         .btn-alt:hover { background: rgba(255, 255, 255, 0.05); }
 
-        /* --- DASHBOARD STYLING --- */
+
+        /* --- DASHBOARD STYLING (Dark Theme) --- */
+
         #mainContent { 
+
             display: none; 
+
             width: 95%; 
+
             max-width: 1150px; 
+
             background: var(--card-bg); 
+
             padding: 30px; 
+
             border-radius: 24px; 
+
             box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+
             backdrop-filter: blur(10px);
+
             margin: 20px auto;
+
             border: 1px solid var(--border);
+
         }
+
 
         .header-dash { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        
-        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        
-        /* Tombol Save di Tengah */
-        .save-container {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            margin-bottom: 25px;
-        }
 
-        .btn-save { 
-            background-color: var(--success); 
-            width: 300px; 
-        }
+        
+
+        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+
+        
+
+        .btn-save { background-color: var(--success); grid-column: span 1; }
+
 
         .filter-section { 
+
             background: rgba(255, 255, 255, 0.03); 
+
             padding: 20px; 
+
             border-radius: 15px; 
+
             margin-bottom: 20px; 
+
             display: flex; 
+
             flex-wrap: wrap; 
+
             gap: 15px; 
+
             align-items: flex-end; 
+
             border: 1px solid var(--border);
+
         }
+
 
         /* --- TABLE STYLE --- */
+
         .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+
         table { width: 100%; border-collapse: collapse; background: transparent; }
+
         th { background: rgba(52, 152, 219, 0.2); color: var(--primary); font-weight: 600; text-transform: uppercase; font-size: 0.85em; }
+
         th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+
         tr:hover { background: rgba(255, 255, 255, 0.02); }
+
         
+
         .nominal-plus { color: #2ecc71; font-weight: bold; }
+
         .nominal-minus { color: #ff4757; font-weight: bold; }
+
         
+
         #labelTotalPerBank { width: 100%; font-weight: bold; color: var(--primary); font-size: 1.1em; text-align: right; margin-top: 10px;}
+
         
+
         .logout-btn { background: var(--danger); width: auto; padding: 8px 18px; font-size: 0.8em; }
 
+
         ::placeholder { color: rgba(255,255,255,0.4); }
+
     </style>
+
 </head>
+
 <body>
 
+
     <div id="authOverlay">
+
         <div id="loginBox">
+
             <h2>🔐 Login System</h2>
+
             <p style="font-size: 0.9em; opacity: 0.6; margin-bottom: 25px;">Masukkan kredensial untuk akses Cloud</p>
+
             <input type="text" id="user" placeholder="Username">
+
             <input type="password" id="pass" placeholder="Password">
+
             <button onclick="checkLogin()">Masuk Sekarang</button>
+
             <button class="btn-alt" onclick="showRegister()">Daftar Akun Baru</button>
+
             <p id="errMsg" style="color: var(--danger); font-size: 0.85em; margin-top: 15px; display: none;">Username atau Password salah!</p>
+
         </div>
+
 
         <div id="registerBox" style="display: none;">
+
             <h2>📝 Registrasi</h2>
+
             <input type="text" id="regUser" placeholder="Buat Username">
+
             <input type="password" id="regPass" placeholder="Buat Password">
+
             <input type="text" id="regOtp" placeholder="OTP Admin (Rahasia)" style="border: 1px solid var(--warning);">
+
             <button onclick="prosesDaftar()" style="background: var(--success);">Konfirmasi Daftar</button>
+
             <button class="btn-alt" onclick="hideRegister()">Batal</button>
+
         </div>
+
     </div>
+
 
     <div id="mainContent">
+
         <div class="header-dash">
-            <h2 id="welcomeText" style="margin:0;">💰 Hi! User</h2>
+
+            <h2 style="margin:0;">💰 Monarkky Finance <span style="font-weight: 200; opacity: 0.5;">| Cloud</span></h2>
+
             <button class="logout-btn" onclick="logout()">LOGOUT</button>
-        </div>
-        
-        <div class="form-group">
-            <input type="date" id="tanggal">
-            <input type="text" id="nama" placeholder="Nama Transaksi">
-            <input type="text" id="keterangan" placeholder="Keterangan">
-            <select id="bank">
-                <option value="">-- Pilih Bank --</option>
-                <option value="BCA">BCA</option>
-                <option value="Mandiri">Mandiri</option>
-                <option value="BRI">BRI</option>
-                <option value="BNI">BNI</option>
-                <option value="Cash">Cash / Tunai</option>
-            </select>
-            <input type="number" id="nominal" placeholder="Nominal (- jika keluar)">
+
         </div>
 
-        <div class="save-container">
-            <button id="btnSimpan" class="btn-save" onclick="tambahData()">SAVE DATA</button>
+        
+
+        <div class="form-group">
+
+            <input type="date" id="tanggal">
+
+            <input type="text" id="nama" placeholder="Nama Transaksi">
+
+            <input type="text" id="keterangan" placeholder="Keterangan">
+
+            <select id="bank">
+
+                <option value="">-- Pilih Bank --</option>
+
+                <option value="BCA">BCA</option>
+
+                <option value="Mandiri">Mandiri</option>
+
+                <option value="BRI">BRI</option>
+
+                <option value="BNI">BNI</option>
+
+                <option value="Cash">Cash / Tunai</option>
+
+            </select>
+
+            <input type="number" id="nominal" placeholder="Nominal (- jika keluar)">
+
+            <button id="btnSimpan" class="btn-save" onclick="tambahData()">SIMPAN DATA</button>
+
         </div>
+
 
         <div class="filter-section">
+
             <div style="flex:1; min-width: 200px;">
+
                 <label style="font-size: 0.75em; opacity: 0.6; font-weight: bold; margin-bottom: 5px; display: block;">FILTER BANK</label>
+
                 <select id="filterBank" onchange="tampilkanData()">
+
                     <option value="SEMUA">Semua Bank</option>
+
                     <option value="BCA">BCA</option>
+
                     <option value="Mandiri">Mandiri</option>
+
                     <option value="BRI">BRI</option>
+
                     <option value="BNI">BNI</option>
+
                     <option value="Cash">Cash</option>
+
                 </select>
+
             </div>
+
             <div style="flex:1; min-width: 200px;">
+
                 <label style="font-size: 0.75em; opacity: 0.6; font-weight: bold; margin-bottom: 5px; display: block;">FILTER TANGGAL</label>
+
                 <input type="date" id="filterTanggal" onchange="tampilkanData()">
+
             </div>
+
             <button onclick="resetFilter()" style="width: auto; background:#555; height: 45px; margin-bottom: 15px;">RESET</button>
+
             <div id="labelTotalPerBank"></div>
+
         </div>
+
 
         <div class="table-container">
+
             <table>
+
                 <thead>
+
                     <tr>
+
                         <th>Tanggal</th>
+
                         <th>Nama</th>
+
                         <th>Keterangan</th>
+
                         <th>Bank</th>
+
                         <th>Nominal</th>
+
                         <th>Saldo Akhir</th>
+
                     </tr>
+
                 </thead>
+
                 <tbody id="isiTabel">
+
                     <tr><td colspan="6" style="text-align:center; padding: 50px; opacity: 0.5;">Menghubungkan ke Cloud...</td></tr>
+
                 </tbody>
+
             </table>
+
         </div>
+
     </div>
 
+
 <script>
+
+    // MASUKKAN URL WEB APP GOOGLE SCRIPT KAMU DI SINI
+
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNFF_uU6j4SWmg0XN147M3e8mAi_eTeoTtk0NLSbiybeOcANsWt_kKL2fIn5_nbMfP/exec";
 
+
     // --- SISTEM AUTH ---
-    if (sessionStorage.getItem("isLoggedIn") === "true") {
-        setTimeout(showDashboard, 100); 
-    }
+
+    if (sessionStorage.getItem("isLoggedIn") === "true") showDashboard();
+
 
     function showRegister() {
+
         document.getElementById('loginBox').style.display = 'none';
+
         document.getElementById('registerBox').style.display = 'block';
+
     }
+
 
     function hideRegister() {
+
         document.getElementById('loginBox').style.display = 'block';
+
         document.getElementById('registerBox').style.display = 'none';
+
     }
+
 
     async function checkLogin() {
+
         const u = document.getElementById('user').value;
+
         const p = document.getElementById('pass').value;
+
         const btn = document.querySelector("#loginBox button");
+
         
+
         btn.innerText = "Checking...";
+
         btn.disabled = true;
 
+
         try {
+
             const res = await fetch(SCRIPT_URL);
+
             const db = await res.json();
+
             const userFound = db.users.find(row => row[0] === u && row[1].toString() === p);
 
+
             if (userFound) {
+
                 sessionStorage.setItem("isLoggedIn", "true");
-                sessionStorage.setItem("activeUser", u);
+
                 showDashboard();
+
             } else {
+
                 document.getElementById('errMsg').style.display = 'block';
+
                 btn.innerText = "Masuk Sekarang";
+
                 btn.disabled = false;
+
             }
+
         } catch (e) { 
+
             alert("Gagal mengambil data user!"); 
+
             btn.disabled = false;
+
         }
+
     }
 
+
     async function prosesDaftar() {
+
         const u = document.getElementById('regUser').value;
+
         const p = document.getElementById('regPass').value;
+
         const otp = document.getElementById('regOtp').value;
+
 
         if (!u || !p || !otp) { alert("Data tidak lengkap!"); return; }
 
+
         const payload = { action: "register", username: u, password: p, otp: otp };
 
+
         try {
+
             const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
+
             const result = await res.text();
+
             if (result.includes("Success")) {
+
                 alert("Pendaftaran Berhasil! Silakan Login.");
+
                 hideRegister();
+
             } else { alert(result); }
+
         } catch (e) { alert("Gagal mendaftar!"); }
+
     }
 
+
     function showDashboard() {
-        const user = sessionStorage.getItem("activeUser") || "User";
-        document.getElementById('welcomeText').innerText = `💰 Hi! ${user}`;
+
         document.getElementById('authOverlay').style.display = "none";
+
         document.getElementById('mainContent').style.display = "block";
+
+        document.body.style.display = "block"; // Reset flex align
+
         tampilkanData();
+
     }
+
 
     function logout() { sessionStorage.clear(); location.reload(); }
 
+
     // --- MANAJEMEN DATA ---
+
     document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
+
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
+
     async function tambahData() {
+
         const btn = document.getElementById('btnSimpan');
+
         const payload = {
+
             tanggal: document.getElementById('tanggal').value,
+
             nama: document.getElementById('nama').value,
+
             keterangan: document.getElementById('keterangan').value,
+
             bank: document.getElementById('bank').value,
+
             nominal: parseFloat(document.getElementById('nominal').value)
+
         };
+
 
         if (!payload.tanggal || !payload.nama || !payload.bank || isNaN(payload.nominal)) { alert("Data tidak lengkap!"); return; }
 
-        btn.disabled = true; btn.innerText = "Saving...";
+
+        btn.disabled = true; btn.innerText = "Menyimpan...";
+
 
         try {
+
             const res = await fetch(SCRIPT_URL);
+
             const db = await res.json();
+
             const history = db.transaksi;
+
             let saldo = 0;
+
             if (history.length > 0) saldo = parseFloat(history[history.length - 1][5]) || 0;
+
             payload.total = saldo + payload.nominal;
 
+
             await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
+
             alert("Tersimpan di Cloud!");
+
             tampilkanData();
+
             document.getElementById('nama').value = "";
+
             document.getElementById('keterangan').value = "";
+
             document.getElementById('nominal').value = "";
-        } catch (e) { alert("Gagal simpan!"); } finally { btn.disabled = false; btn.innerText = "SAVE DATA"; }
+
+        } catch (e) { alert("Gagal simpan!"); } finally { btn.disabled = false; btn.innerText = "SIMPAN DATA"; }
+
     }
 
+
     async function tampilkanData() {
+
         const tbody = document.getElementById('isiTabel');
+
         const fBank = document.getElementById('filterBank').value;
+
         const fTgl = document.getElementById('filterTanggal').value;
+
         
+
         try {
+
             const response = await fetch(SCRIPT_URL);
+
+            const db = await response.json();
+
+            const history = db.transaksi;
+
+            tbody.innerHTML = "";
+
+            let totalFiltered = 0;
+
+
+            if (!history || history.length === 0) {
+
+                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px; opacity: 0.5;'>Belum ada transaksi.</td></tr>";
+
+                return;
+
+            }
+
+
+            history.forEach(row => {
+
+                const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
+
+                if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
+
+                    const nom = parseFloat(row[4]);
+
+                    totalFiltered += nom;
+
+                    const tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+
+                        <td>${new Date(row[0]).toLocaleDateString('id-ID')}</td>
+
+                        <td>${row[1]}</td>
+
+                        <td>${row[2]}</td>
+
+                        <td><span style="color: var(--primary)">${row[3]}</span></td>
+
+                        <td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td>
+
+                        <td>${formatter.format(row[5])}</td>
+
+                    `;
+
+                    tbody.appendChild(tr);
+
+                }
+
+            });
+
+            document.getElementById('labelTotalPerBank').innerText = (fBank !== "SEMUA" || fTgl) ? `Ringkasan: ${formatter.format(totalFiltered)}` : "";
+
+        } catch (e) { tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; color: var(--danger);'>Gagal memuat data dari Sheets.</td></tr>"; }
+
+    }
+
+
+    function resetFilter() {
+
+        document.getElementById('filterBank').value = "SEMUA";
+
+        document.getElementById('filterTanggal').value = "";
+
+        tampilkanData();
+
+    }
+
+</script>
+
+</body>
+
+</html> 
