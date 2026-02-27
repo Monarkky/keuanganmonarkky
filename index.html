@@ -114,6 +114,15 @@
         .nominal-plus { color: #2ecc71; font-weight: bold; }
         .nominal-minus { color: #ff4757; font-weight: bold; }
         
+        /* Tombol Hapus Specific Styling */
+        .btn-del { 
+            background-color: var(--danger); 
+            padding: 8px 12px; 
+            font-size: 0.9em; 
+            width: auto; 
+            border-radius: 8px;
+        }
+
         #labelTotalPerBank { width: 100%; font-weight: bold; color: var(--primary); font-size: 1.1em; text-align: right; margin-top: 10px;}
         .logout-btn { background: var(--danger); width: auto; padding: 8px 18px; font-size: 0.8em; }
         ::placeholder { color: rgba(255,255,255,0.4); }
@@ -197,10 +206,11 @@
                         <th>Bank</th>
                         <th>Nominal</th>
                         <th>Saldo Akhir</th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="isiTabel">
-                    <tr><td colspan="6" style="text-align:center; padding: 50px; opacity: 0.5;">Memuat data dari Cloud...</td></tr>
+                    <tr><td colspan="7" style="text-align:center; padding: 50px; opacity: 0.5;">Memuat data dari Cloud...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -288,7 +298,6 @@
         document.getElementById('authOverlay').style.display = "none";
         document.getElementById('mainContent').style.display = "block";
         
-        // Set tanggal hari ini & Fokuskan kursor ke Nama Transaksi
         document.getElementById('tanggal').value = new Date().toLocaleDateString('en-CA');
         document.getElementById('nama').focus(); 
         
@@ -305,7 +314,6 @@
 
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
-    // --- FUNGSI TAMBAH DATA (FIXED: CLEAR & REFRESH) ---
     async function tambahData() {
         const btn = document.getElementById('btnSimpan');
         
@@ -343,13 +351,6 @@
 
             if (result.includes("Success")) {
                 alert("✅ Data Berhasil Disimpan!");
-                
-                // Kosongkan kolom input secara paksa
-                elNama.value = "";
-                elKet.value = "";
-                elNom.value = "";
-                
-                // Refresh halaman agar data terbaru muncul & kolom benar-benar bersih
                 location.reload(); 
             } else {
                 alert("Gagal menyimpan data ke Cloud.");
@@ -363,33 +364,92 @@
         } 
     }
 
+    // --- FUNGSI HAPUS DATA (BARU) ---
+    async function hapusData(idx) {
+        if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+
+        // Cari tombol hapus yang diklik dan ubah statusnya
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "⌛";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "delete", rowIndex: idx })
+            });
+            const result = await response.text();
+
+            if (result.includes("Success")) {
+                alert("Data berhasil dihapus!");
+                tampilkanData(); // Refresh tabel saja
+            } else {
+                alert("Gagal menghapus: " + result);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Kesalahan koneksi saat menghapus.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
     async function tampilkanData() {
         const tbody = document.getElementById('isiTabel');
         const fBank = document.getElementById('filterBank').value;
         const fTgl = document.getElementById('filterTanggal').value;
+        
         try {
             const response = await fetch(SCRIPT_URL);
             const db = await response.json();
             tbody.innerHTML = "";
             let totalFiltered = 0;
             
-            const dataReverse = [...db.transaksi].reverse();
-            
-            dataReverse.forEach(row => {
+            // Kita gunakan data asli untuk mendapatkan index yang benar bagi Google Sheet
+            // Lalu kita buat salinan untuk ditampilkan secara terbalik (Terbaru di atas)
+            const historyData = db.transaksi;
+
+            historyData.slice().reverse().forEach((row, revIdx) => {
+                // Kalkulasi index asli: (panjang total - 1) - index terbalik
+                const originalIndex = (historyData.length - 1) - revIdx;
+                
                 const rowDate = new Date(row[0]).toLocaleDateString('en-CA');
+                
                 if ((fBank === "SEMUA" || row[3] === fBank) && (!fTgl || rowDate === fTgl)) {
                     const nom = parseFloat(row[4]);
                     totalFiltered += nom;
+                    
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${new Date(row[0]).toLocaleDateString('id-ID')}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td><td>${formatter.format(row[5])}</td>`;
+                    tr.innerHTML = `
+                        <td>${new Date(row[0]).toLocaleDateString('id-ID')}</td>
+                        <td>${row[1]}</td>
+                        <td>${row[2]}</td>
+                        <td>${row[3]}</td>
+                        <td class="${nom >= 0 ? 'nominal-plus' : 'nominal-minus'}">${formatter.format(nom)}</td>
+                        <td>${formatter.format(row[5])}</td>
+                        <td><button class="btn-del" onclick="hapusData(${originalIndex})">🗑️</button></td>
+                    `;
                     tbody.appendChild(tr);
                 }
             });
+            
             document.getElementById('labelTotalPerBank').innerText = (fBank !== "SEMUA" || fTgl) ? `Ringkasan: ${formatter.format(totalFiltered)}` : "";
-        } catch (e) { tbody.innerHTML = "<tr><td colspan='6'>Gagal memuat data.</td></tr>"; }
+            
+            if (tbody.innerHTML === "") {
+                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; opacity:0.5;'>Tidak ada data.</td></tr>";
+            }
+        } catch (e) { 
+            tbody.innerHTML = "<tr><td colspan='7'>Gagal memuat data.</td></tr>"; 
+        }
     }
 
-    function resetFilter() { document.getElementById('filterBank').value = "SEMUA"; document.getElementById('filterTanggal').value = ""; tampilkanData(); }
+    function resetFilter() { 
+        document.getElementById('filterBank').value = "SEMUA"; 
+        document.getElementById('filterTanggal').value = ""; 
+        tampilkanData(); 
+    }
 </script>
 </body>
 </html>
